@@ -124,7 +124,7 @@ jobs:
           path: Releases/
           if-no-files-found: error
       - name: Create draft prerelease
-        if: github.event_name == 'workflow_dispatch' && inputs.create_draft
+        if: github.event_name == 'push' || inputs.create_draft
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
           RELEASE_COMMIT: ${{ github.sha }}
