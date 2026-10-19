@@ -3,6 +3,9 @@ name: Arabic preview installers
 on:
   push:
     branches: [feature/arabic-rtl]
+    paths-ignore:
+      - 'docs/**'
+      - '.github/workflows/publish-arabic.yml'
   workflow_dispatch:
     inputs:
       version:

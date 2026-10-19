@@ -1,0 +1,96 @@
+name: Publish verified Arabic preview
+
+on:
+  push:
+    tags: ['publish-arabic-v*']
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve preview version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#publish-arabic-v}"
+          version="${version%%+*}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z][0-9A-Za-z.-]*$ ]]; then
+            echo 'Only a valid prerelease version can be published by this workflow.' >&2
+            exit 1
+          fi
+          echo "PACKAGE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=arabic-v$version" >> "$GITHUB_ENV"
+      - name: Require a successful build of the release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)
+          if [[ ! "$source_commit" =~ ^[a-f0-9]{40}$ ]]; then
+            echo 'The preview must target an exact source commit.' >&2
+            exit 1
+          fi
+          source_run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/arabic-builds.yml/runs?head_sha=$source_commit&status=success&per_page=100" --jq '.workflow_runs[0].id // empty')
+          [[ "$source_run" =~ ^[0-9]+$ ]]
+          echo "SOURCE_RUN_ID=$source_run" >> "$GITHUB_ENV"
+          echo "SOURCE_COMMIT=$source_commit" >> "$GITHUB_ENV"
+          echo "Verified source commit: $source_commit" >> "$GITHUB_STEP_SUMMARY"
+      - name: Download and verify all six installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir Packages
+          cd Packages
+          for rid in linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            test -s "Filee-$PACKAGE_VERSION-$rid.tar.gz"
+            sha256sum --check "Filee-$PACKAGE_VERSION-$rid-SHA256SUMS.txt"
+          done
+          test -s "Filee-$PACKAGE_VERSION-win-Setup.exe"
+          test -s "Filee-$PACKAGE_VERSION-win-Portable.zip"
+          sha256sum --check "Filee-$PACKAGE_VERSION-SHA256SUMS.txt"
+          test "$(wc -l < SHA256SUMS.txt)" -eq 6
+          sha256sum --check SHA256SUMS.txt
+      - name: Summarize native test results
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'unix-test-results-*' --pattern 'windows-arabic-test-results' --dir TestReports
+          python3 - <<'PYTHON'
+          import collections, json, os, pathlib, re, zipfile, xml.etree.ElementTree as ET
+          root = pathlib.Path('TestReports')
+          names = ['windows-arabic-test-results'] + ['unix-test-results-' + rid for rid in ('linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
+          report = {'source_run': os.environ['SOURCE_RUN_ID'], 'version': os.environ['PACKAGE_VERSION'], 'source_commit': os.environ['SOURCE_COMMIT'], 'platforms': {}}
+          for name in names:
+              results = {}
+              files = sorted((root / name).rglob('*.trx'))
+              assert files, 'Missing TRX results for ' + name
+              for file in files:
+                  document = ET.parse(file)
+                  for row in document.findall('.//{*}UnitTestResult'):
+                      key = row.get('testName')
+                      if key not in results or row.get('startTime', '') > results[key].get('startTime', ''):
+                          results[key] = row.attrib
+              counts = collections.Counter(row.get('outcome') for row in results.values())
+              assert counts and set(counts) <= {'Passed', 'NotExecuted'}, (name, counts)
+              report['platforms'][name] = {'counts': dict(counts), 'skipped': sorted(key for key, row in results.items() if row.get('outcome') == 'NotExecuted')}
+          pathlib.Path('VALIDATION.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          screenshots = [file for file in root.rglob('*.png') if re.search(r'(^|[-_])ar([-_.]|$)', file.name)]
+          assert screenshots, 'Missing Arabic screenshots'
+          with zipfile.ZipFile('Screenshots-Arabic.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              for file in screenshots:
+                  archive.write(file, file.relative_to(root))
+          PYTHON
+          gh release upload "$RELEASE_TAG" VALIDATION.json Screenshots-Arabic.zip --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Publish prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --notes-file docs/ARABIC-RELEASE.md
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
