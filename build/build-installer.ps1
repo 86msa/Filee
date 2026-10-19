@@ -83,6 +83,10 @@ function Invoke-Checked([string]$what, [scriptblock]$command) {
 if (-not $Version) {
     $Version = ([xml](Get-Content (Join-Path $root 'Directory.Build.props'))).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 }
+$Version = $Version.TrimStart('v')
+if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+    throw 'Version must be a three-part version with an optional prerelease suffix.'
+}
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $OutputDir = (Resolve-Path $OutputDir).Path
 
@@ -126,7 +130,7 @@ finally {
 }
 
 Write-Host "compile installer $Version"
-$options = @('/Q', "/DAppVersion=$Version", "/DPublishDir=$PublishDir", "/O$OutputDir")
+$options = @('/Q', "/DAppVersion=$Version", "/DAppNumericVersion=$(($Version -split '-')[0])", "/DPublishDir=$PublishDir", "/O$OutputDir")
 if ($CheckOnly) { $options += '--no-compression' }
 Invoke-Checked 'ISCC' { & $iscc @options (Join-Path $root 'installer\Filee.iss') }
 $setupExe = Join-Path $OutputDir "Filee-$Version-win-Setup.exe"

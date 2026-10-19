@@ -27,6 +27,8 @@ public class RenderTests
         { "presets", "en" }, { "theme", "en" }, { "engines", "en" }, { "about", "en" },
         { "toolbar", "ko" }, { "home", "ko" }, { "presets", "zh-CN" }, { "toolbar", "zh-CN" }, { "home", "zh-CN" },
         { "toolbar", "pl" }, { "presets", "pl" }, { "home", "pl" },
+        { "home", "ar" }, { "general", "ar" }, { "triggers", "ar" }, { "toolbar", "ar" },
+        { "presets", "ar" }, { "watch", "ar" }, { "theme", "ar" }, { "engines", "ar" }, { "about", "ar" },
         { "home", "es" }, { "general", "es" }, { "toolbar", "es" }, { "presets", "es" }, { "engines", "es" },
     };
 
@@ -48,6 +50,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Watch_folders_page_renders_a_rule(string language)
     {
@@ -81,6 +84,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Watch_folder_card_shows_recent_results_and_retries_in_the_folder(string language)
     {
@@ -142,6 +146,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Watch_folder_options_rename_and_filter_with_a_preview(string language)
     {
@@ -230,6 +235,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Home_page_lists_failed_files_with_a_retry_button(string language)
     {
@@ -344,6 +350,7 @@ public class RenderTests
     [AvaloniaTheory]
     [InlineData("ko")]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("zh-CN")]
     public void The_rotate_and_flip_groups_fan_out_names_that_fit(string language)
     {
@@ -391,6 +398,7 @@ public class RenderTests
     [AvaloniaTheory]
     [InlineData("ko")]
     [InlineData("en")]
+    [InlineData("ar")]
     public void A_group_slice_fans_out_its_presets(string language)
     {
         TestServices.EnsureInitialized(language);
@@ -491,6 +499,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Sponsor_window_renders(string language)
     {
@@ -544,6 +553,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void First_run_engine_setup_renders(string language)
     {
@@ -746,6 +756,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Sidebar_shows_the_version_and_a_new_release(string language)
     {
@@ -832,6 +843,8 @@ public class RenderTests
     /// </summary>
     [AvaloniaTheory]
     [InlineData("en", false)]
+    [InlineData("ar", false)]
+    [InlineData("ar", true)]
     [InlineData("ko", false)]
     [InlineData("zh-CN", false)]
     [InlineData("en", true)]
@@ -875,6 +888,8 @@ public class RenderTests
     /// <summary>A second mixed-selection donut limited to images and PDF, two groups expanded.</summary>
     [AvaloniaTheory]
     [InlineData("en", false, "render-scans")]
+    [InlineData("ar", false, "render-scans")]
+    [InlineData("ar", true, "mixed")]
     [InlineData("ko", false, "render-scans")]
     [InlineData("zh-CN", false, "render-scans")]
     [InlineData("ko", true, "render-scans")]
@@ -911,6 +926,8 @@ public class RenderTests
     /// <summary>The preset popup with the video/audio and archive sections, and the target list.</summary>
     [AvaloniaTheory]
     [InlineData("en", false)]
+    [InlineData("ar", false)]
+    [InlineData("ar", true)]
     [InlineData("ko", false)]
     [InlineData("zh-CN", false)]
     [InlineData("ko", true)]
@@ -993,6 +1010,7 @@ public class RenderTests
     /// <summary>The preset popup of "Trace to SVG": mode, colours and detail; colours only in colour mode.</summary>
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     [InlineData("zh-CN")]
     public void Preset_editor_shows_tracing_options(string language)
@@ -1036,6 +1054,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     [InlineData("zh-CN")]
     public void Preset_editor_offers_markdown_without_pictures(string language)
@@ -1206,6 +1225,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     public void Excluded_apps_render_as_tags(string language)
     {
@@ -1233,6 +1253,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     [InlineData("zh-CN")]
     public void Close_dialog_renders(string language)
@@ -1247,6 +1268,7 @@ public class RenderTests
 
     [AvaloniaTheory]
     [InlineData("en")]
+    [InlineData("ar")]
     [InlineData("ko")]
     [InlineData("zh-CN")]
     public void Format_request_notice_renders(string language)

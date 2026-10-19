@@ -1,0 +1,135 @@
+name: Arabic preview installers
+
+on:
+  push:
+    branches: [feature/arabic-rtl]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Preview version (three numbers and optional prerelease suffix)'
+        type: string
+        default: '1.12.1-arabic.1'
+        required: true
+      create_draft:
+        description: 'Collect verified packages in a draft prerelease'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arabic-installers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Validate preview version
+        id: version
+        env:
+          PACKAGE_VERSION: ${{ inputs.version || '1.12.1-arabic.1' }}
+        run: |
+          if [[ ! "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo 'Invalid package version' >&2
+            exit 1
+          fi
+          echo "value=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+  unix:
+    needs: version
+    uses: ./.github/workflows/portable.yml
+    with:
+      version: ${{ needs.version.outputs.value }}
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Fonts
+        run: ./build/fetch-fonts.ps1
+      - name: Explorer integration
+        env:
+          PACKAGE_VERSION: ${{ needs.version.outputs.value }}
+        run: ./build/build-explorer-menu.ps1 -Version $env:PACKAGE_VERSION
+      - name: Test engines
+        run: ./build/fetch-engines.ps1 -Only rhwp,pandoc,7zip
+      - name: Build
+        run: dotnet build Filee.slnx -c Release
+      - name: UI tests
+        run: dotnet test tests/Filee.App.Tests --no-build -c Release --blame-crash --blame-hang-timeout 5m --logger trx --results-directory TestResults/app
+      - name: Other tests
+        run: dotnet test Filee.slnx --no-build -c Release --filter 'FullyQualifiedName!~Filee.App.Tests' --logger trx --results-directory TestResults/other
+      - name: Installer and portable ZIP
+        env:
+          PACKAGE_VERSION: ${{ needs.version.outputs.value }}
+        run: ./build/build-installer.ps1 -Version $env:PACKAGE_VERSION -Portable
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-win-x64
+          path: Releases/Filee-*
+          if-no-files-found: error
+      - name: Test diagnostics and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-arabic-test-results
+          path: |
+            TestResults/
+            tests/Filee.App.Tests/bin/Release/net10.0/screenshots/
+          if-no-files-found: ignore
+
+  collect:
+    needs: [version, unix, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PACKAGE_VERSION: ${{ needs.version.outputs.value }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: portable-*
+          merge-multiple: true
+          path: Releases
+      - name: Verify all six packages and their checksums
+        working-directory: Releases
+        run: |
+          set -euo pipefail
+          for rid in linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            test -s "Filee-$PACKAGE_VERSION-$rid.tar.gz"
+            sha256sum --check "Filee-$PACKAGE_VERSION-$rid-SHA256SUMS.txt"
+          done
+          test -s "Filee-$PACKAGE_VERSION-win-Setup.exe"
+          test -s "Filee-$PACKAGE_VERSION-win-Portable.zip"
+          sha256sum --check "Filee-$PACKAGE_VERSION-SHA256SUMS.txt"
+          sha256sum *.tar.gz *.exe *.zip > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Filee-arabic-all-platforms
+          path: Releases/
+          if-no-files-found: error
+      - name: Create draft prerelease
+        if: github.event_name == 'workflow_dispatch' && inputs.create_draft
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          gh release create "arabic-v$PACKAGE_VERSION" Releases/* \
+            --repo "$RELEASE_REPOSITORY" --target "$RELEASE_COMMIT" \
+            --draft --prerelease --title "Filee $PACKAGE_VERSION — العربية / RTL" \
+            --notes-file docs/ARABIC-RELEASE.md

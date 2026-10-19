@@ -22,6 +22,10 @@
   #error PublishDir is not defined: build with build/build-installer.ps1
 #endif
 
+#ifndef AppNumericVersion
+  #define AppNumericVersion AppVersion
+#endif
+
 #define AppName "Filee"
 #define AppExe "Filee.exe"
 #define RepositoryUrl "https://github.com/KnifeLemon/Filee"
@@ -38,7 +42,7 @@ AppPublisherURL={#RepositoryUrl}
 AppSupportURL={#RepositoryUrl}/issues
 AppUpdatesURL={#RepositoryUrl}/releases
 AppCopyright=Copyright (c) Filee contributors
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppNumericVersion}
 VersionInfoProductName={#AppName}
 SetupArchitecture=x64
 ArchitecturesAllowed=x64compatible

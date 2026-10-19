@@ -102,7 +102,7 @@
         <Grid ColumnDefinitions="*,12,*">
           <StackPanel>
             <TextBlock Classes="label" Text="{DynamicResource presets.background}" />
-            <TextBox Text="{Binding Background}" PlaceholderText="#FFFFFF" />
+            <TextBox Classes="technical" Text="{Binding Background}" PlaceholderText="#FFFFFF" />
           </StackPanel>
           <StackPanel Grid.Column="2" IsVisible="{Binding ShowTiff}">
             <TextBlock Classes="label" Text="{DynamicResource presets.tiff_compression}" />
@@ -110,7 +110,7 @@
           </StackPanel>
           <StackPanel Grid.Column="2" IsVisible="{Binding ShowIco}">
             <TextBlock Classes="label" Text="{DynamicResource presets.ico_sizes}" />
-            <TextBox Text="{Binding IcoSizes}" PlaceholderText="256, 64, 48, 32, 16" />
+            <TextBox Classes="technical" Text="{Binding IcoSizes}" PlaceholderText="256, 64, 48, 32, 16" />
           </StackPanel>
         </Grid>
         <CheckBox Content="{DynamicResource presets.multipage_tiff}" IsChecked="{Binding MultiPageTiff}" IsVisible="{Binding ShowMultiPageTiff}"
@@ -294,7 +294,7 @@
           </StackPanel>
           <StackPanel Grid.Column="2">
             <TextBlock Classes="label" Text="{DynamicResource presets.page_range}" />
-            <TextBox Text="{Binding PageRange}" PlaceholderText="{DynamicResource presets.page_range_hint}" />
+            <TextBox Classes="technical" Text="{Binding PageRange}" PlaceholderText="{DynamicResource presets.page_range_hint}" />
           </StackPanel>
         </Grid>
         <CheckBox Content="{DynamicResource presets.pdfa}" IsChecked="{Binding PdfA}" IsVisible="{Binding ShowDocument}" />
@@ -323,12 +323,12 @@
           <TextBlock Classes="label" Text="{DynamicResource presets.custom_folder}" />
           <DockPanel>
             <Button DockPanel.Dock="Right" Margin="8,0,0,0" Content="{DynamicResource presets.browse}" Click="OnBrowseFolder" />
-            <TextBox Text="{Binding CustomFolder}" />
+            <TextBox Classes="technical" Text="{Binding CustomFolder}" />
           </DockPanel>
         </StackPanel>
         <StackPanel>
           <TextBlock Classes="label" Text="{DynamicResource presets.pattern}" />
-          <TextBox Text="{Binding Pattern}" PlaceholderText="{}{name}" />
+          <TextBox Classes="technical" Text="{Binding Pattern}" PlaceholderText="{}{name}" />
           <TextBlock Classes="caption" Text="{DynamicResource presets.pattern_hint}" Margin="2,4,0,0" />
         </StackPanel>
         <CheckBox Content="{DynamicResource presets.keep_dates}" IsChecked="{Binding KeepDates}"

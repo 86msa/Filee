@@ -45,7 +45,7 @@
           <TextBlock Classes="label" Text="{DynamicResource presets.custom_folder}" />
           <DockPanel MaxWidth="560" HorizontalAlignment="Stretch">
             <Button DockPanel.Dock="Right" Margin="8,0,0,0" Content="{DynamicResource presets.browse}" Click="OnBrowseDefaultFolder" />
-            <TextBox Text="{Binding DefaultFolder}" />
+            <TextBox Classes="technical" Text="{Binding DefaultFolder}" />
           </DockPanel>
         </StackPanel>
         <ToggleSwitch Content="{DynamicResource general.keep_dates}" IsChecked="{Binding KeepFileDates}" />

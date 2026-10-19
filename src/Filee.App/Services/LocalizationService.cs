@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Platform;
 using Filee.Core.Localization;
 
@@ -19,13 +20,20 @@ public sealed class LocalizationService : ILocalizer
     public static readonly IReadOnlyList<(string Code, string NativeName)> Languages =
     [
         ("en", "English"),
+        ("ar", "العربية"),
         ("es", "Español"),
         ("ko", "한국어"),
         ("zh-CN", "简体中文"),
         ("pl", "Polski"),
     ];
 
-    private readonly ResourceDictionary _resources = new();
+    private readonly ResourceDictionary _resources = new()
+    {
+        ["AppFlowDirection"] = FlowDirection.LeftToRight,
+        ["AppFileNameAlignment"] = TextAlignment.Left,
+        ["AppForwardArrow"] = "→",
+        ["AppPopupPlacement"] = PlacementMode.BottomEdgeAlignedLeft,
+    };
     private readonly Dictionary<string, string> _english;
     private Dictionary<string, string> _current;
 
@@ -36,6 +44,9 @@ public sealed class LocalizationService : ILocalizer
     }
 
     public string Language { get; private set; } = "en";
+
+    /// <summary>The reading direction of the current UI; file contents and conversion routes are independent.</summary>
+    public FlowDirection Direction => Language == "ar" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
 
     private bool _initialized;
 
@@ -53,7 +64,12 @@ public sealed class LocalizationService : ILocalizer
     {
         try
         {
-            return string.Format(CultureInfo.CurrentCulture, this[key], args);
+            // Isolate filenames, versions and engine names from surrounding RTL punctuation. These marks belong
+            // only to the displayed message: never to filesystem paths, saved presets or converter inputs.
+            var displayArgs = Language == "ar"
+                ? args.Select(arg => arg is string text ? (object)$"\u2068{text}\u2069" : arg).ToArray()
+                : args;
+            return string.Format(CultureInfo.CurrentCulture, this[key], displayArgs);
         }
         catch (FormatException)
         {
@@ -73,6 +89,10 @@ public sealed class LocalizationService : ILocalizer
         var code = Resolve(setting);
         _current = code == "en" ? _english : LoadStrings(code);
         Language = code;
+        _resources["AppFlowDirection"] = Direction;
+        _resources["AppFileNameAlignment"] = Language == "ar" ? TextAlignment.Right : TextAlignment.Left;
+        _resources["AppForwardArrow"] = Language == "ar" ? "←" : "→";
+        _resources["AppPopupPlacement"] = Language == "ar" ? PlacementMode.BottomEdgeAlignedRight : PlacementMode.BottomEdgeAlignedLeft;
 
         var culture = CultureInfo.GetCultureInfo(code);
         CultureInfo.CurrentUICulture = culture;
@@ -95,6 +115,14 @@ public sealed class LocalizationService : ILocalizer
 
         // macOS gives an app started from Finder no LANG: its language list comes from the system instead.
         var ui = Filee.Platform.MacOS.MacOSLocale.PreferredLanguage() ?? CultureInfo.InstalledUICulture.Name;
+        return ResolveSystemLanguage(ui);
+    }
+
+    /// <summary>Maps a system culture, including regional variants, without changing the process culture.</summary>
+    internal static string ResolveSystemLanguage(string ui)
+    {
+        if (ui.Equals("ar", StringComparison.OrdinalIgnoreCase) || ui.StartsWith("ar-", StringComparison.OrdinalIgnoreCase))
+            return "ar";
         if (ui.StartsWith("ko", StringComparison.OrdinalIgnoreCase))
             return "ko";
         if (ui.StartsWith("zh", StringComparison.OrdinalIgnoreCase))

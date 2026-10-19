@@ -1,9 +1,10 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Filee.App.Services;
 
 namespace Filee.App.Tests;
 
-/// <summary>Keeps en / es / ko / zh-CN in sync so no language silently falls back to English.</summary>
+/// <summary>Keeps every translation in sync so no language silently falls back to English.</summary>
 public partial class LocalizationTests
 {
     private static string I18nDirectory
@@ -20,7 +21,38 @@ public partial class LocalizationTests
     private static Dictionary<string, string> Load(string code) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(I18nDirectory, code + ".json")))!;
 
-    public static TheoryData<string> Languages => new() { "es", "ko", "zh-CN", "pl" };
+    public static TheoryData<string> Languages => new() { "ar", "es", "ko", "zh-CN", "pl" };
+
+    [Theory]
+    [InlineData("ar", "ar")]
+    [InlineData("ar-IQ", "ar")]
+    [InlineData("AR-SA", "ar")]
+    [InlineData("ar-EG", "ar")]
+    [InlineData("en-US", "en")]
+    [InlineData("ko-KR", "ko")]
+    [InlineData("zh-TW", "zh-CN")]
+    [InlineData("pl-PL", "pl")]
+    [InlineData("es-ES", "es")]
+    [InlineData("fa-IR", "en")]
+    public void System_cultures_resolve_to_a_shipped_language(string culture, string expected) =>
+        Assert.Equal(expected, LocalizationService.ResolveSystemLanguage(culture));
+
+    [Fact]
+    public void Arabic_is_registered_with_its_native_name_and_has_no_empty_translations()
+    {
+        Assert.Contains(("ar", "العربية"), LocalizationService.Languages);
+        Assert.All(Load("ar"), pair => Assert.False(string.IsNullOrWhiteSpace(pair.Value), pair.Key));
+    }
+
+    [Fact]
+    public void Arabic_preserves_placeholder_counts_and_file_name_tokens()
+    {
+        var english = Load("en");
+        foreach (var (key, value) in Load("ar"))
+            Assert.Equal(
+                AllPlaceholderPattern().Matches(english[key]).Select(m => m.Value).Order(),
+                AllPlaceholderPattern().Matches(value).Select(m => m.Value).Order());
+    }
 
     [Theory]
     [MemberData(nameof(Languages))]
@@ -64,6 +96,9 @@ public partial class LocalizationTests
 
     [GeneratedRegex(@"\{\d+\}")]
     private static partial Regex PlaceholderPattern();
+
+    [GeneratedRegex(@"\{[^{}]+\}")]
+    private static partial Regex AllPlaceholderPattern();
 
     [GeneratedRegex(@"\{DynamicResource ([\w.]+)\}")]
     private static partial Regex DynamicResourceKey();

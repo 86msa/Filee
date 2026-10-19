@@ -127,7 +127,8 @@ public sealed partial class DonutMenu : Control
         AffectsMeasure<DonutMenu>(OuterRadiusProperty, ReserveSubRingProperty);
         AffectsRender<DonutMenu>(HoleRatioProperty, SliceOpacityProperty, CenterTitleProperty, CenterSubtitleProperty,
             IsEditModeProperty, SliceBrushProperty, SliceBorderBrushProperty, CenterBrushProperty, AccentBrushProperty,
-            OnAccentBrushProperty, ForegroundProperty, SecondaryForegroundProperty, SuccessBrushProperty);
+            OnAccentBrushProperty, ForegroundProperty, SecondaryForegroundProperty, SuccessBrushProperty, FlowDirectionProperty,
+            TextElement.FontFamilyProperty);
         ItemsProperty.Changed.AddClassHandler<DonutMenu>((d, _) => d.OnItemsChanged());
     }
 
@@ -136,6 +137,10 @@ public sealed partial class DonutMenu : Control
         ClipToBounds = false;
         Cursor = new Cursor(StandardCursorType.Hand);
     }
+
+    // The ring is a spatial gesture surface, not a row of text. Keep slice positions, rotation icons and pointer /
+    // keyboard hit testing in the same physical coordinates in both languages; shape its text with the UI direction.
+    protected override bool BypassFlowDirectionPolicies => true;
 
     public IReadOnlyList<DonutItem>? Items { get => GetValue(ItemsProperty); set => SetValue(ItemsProperty, value); }
     public double OuterRadius { get => GetValue(OuterRadiusProperty); set => SetValue(OuterRadiusProperty, value); }
@@ -949,8 +954,8 @@ public sealed partial class DonutMenu : Control
 
     private Pen? BorderPen() => SliceBorderBrush is null ? null : new Pen(SliceBorderBrush, 1);
 
-    private static FormattedText MakeText(string text, Typeface typeface, double size, IBrush? brush, double maxWidth, int maxLines = 1) =>
-        new(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, size, brush)
+    internal FormattedText MakeText(string text, Typeface typeface, double size, IBrush? brush, double maxWidth, int maxLines = 1) =>
+        new(text, CultureInfo.CurrentUICulture, FlowDirection, typeface, size, brush)
         {
             MaxTextWidth = Math.Max(10, maxWidth),
             MaxLineCount = maxLines,

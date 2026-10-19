@@ -12,6 +12,7 @@ using Avalonia.VisualTree;
 using Filee.App.Controls;
 using Filee.App.Services;
 using Filee.App.ViewModels.Pages;
+using Filee.Core.Localization;
 using Filee.Core.Profiles;
 using Filee.Core.Settings;
 
@@ -21,10 +22,11 @@ public class TagEditorTests
 {
     private readonly ToolbarProfile _profile = new() { Id = "mine", Name = "Mine", Extensions = ["png"] };
 
-    private (Window Window, TagEditor Editor, ExtensionTagsViewModel Vm) Show()
+    private (Window Window, TagEditor Editor, ExtensionTagsViewModel Vm) Show(string language = "en")
     {
-        TestServices.EnsureInitialized("en");
-        var vm = new ExtensionTagsViewModel(_profile, [_profile], new KeyLocalizer(), () => { });
+        TestServices.EnsureInitialized(language);
+        ILocalizer loc = language == "ar" ? AppHost.Get<ILocalizer>() : new KeyLocalizer();
+        var vm = new ExtensionTagsViewModel(_profile, [_profile], loc, () => { });
         var editor = new TagEditor { AddCommand = vm.AddCommand, RemoveCommand = vm.RemoveCommand, DataContext = vm };
         editor.Bind(TagEditor.TagsProperty, new ReflectionBinding(nameof(vm.Tags)));
         editor.Bind(TagEditor.SuggestionsProperty, new ReflectionBinding(nameof(vm.Suggestions)));
@@ -97,13 +99,21 @@ public class TagEditorTests
         window.Close();
     }
 
-    [AvaloniaFact]
-    public void Arrow_keys_pick_a_suggestion()
+    [AvaloniaTheory]
+    [InlineData("en")]
+    [InlineData("ar")]
+    public void Arrow_keys_pick_a_suggestion(string language)
     {
-        var (window, editor, _) = Show();
+        var (window, editor, _) = Show(language);
         window.KeyTextInput("jp");
         Pump();
         Assert.True(editor.IsSuggestionListOpen);
+        if (language == "ar")
+        {
+            using var frame = window.CaptureRenderedFrame();
+            Assert.NotNull(frame);
+            frame.Save(Path.Combine(TestServices.ScreenshotDirectory, "tag-suggestions-ar.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        }
 
         Press(window, Key.Down);
         Press(window, Key.Down);
@@ -131,13 +141,15 @@ public class TagEditorTests
         window.Close();
     }
 
-    [AvaloniaFact]
-    public void Chips_can_be_reached_and_removed_with_the_keyboard()
+    [AvaloniaTheory]
+    [InlineData("en", Key.Left)]
+    [InlineData("ar", Key.Right)]
+    public void Chips_can_be_reached_and_removed_with_the_keyboard(string language, Key towardsChips)
     {
-        var (window, editor, _) = Show();
+        var (window, editor, _) = Show(language);
         window.KeyTextInput("gif,webp,");
-        Press(window, Key.Left);  // into the last chip (.webp)
-        Press(window, Key.Left);  // .gif
+        Press(window, towardsChips);  // into the last chip (.webp)
+        Press(window, towardsChips);  // .gif
         Press(window, Key.Delete);
         Pump();
 

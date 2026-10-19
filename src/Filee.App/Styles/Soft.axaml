@@ -46,6 +46,10 @@
       <CornerRadius x:Key="SoftRadiusSmall">9</CornerRadius>
       <CornerRadius x:Key="SoftRadiusLarge">22</CornerRadius>
       <FontFamily x:Key="AppFontFamily">Segoe UI, Malgun Gothic, Microsoft YaHei, sans-serif</FontFamily>
+      <FlowDirection x:Key="AppFlowDirection">LeftToRight</FlowDirection>
+      <TextAlignment x:Key="AppFileNameAlignment">Left</TextAlignment>
+      <x:String x:Key="AppForwardArrow">→</x:String>
+      <PlacementMode x:Key="AppPopupPlacement">BottomEdgeAlignedLeft</PlacementMode>
 
       <!-- Springy easing used by press/hover transitions ("말랑말랑"). -->
       <BackEaseOut x:Key="SoftEase" />
@@ -54,10 +58,36 @@
 
   <!-- ───────── Windows & typography ───────── -->
   <Style Selector="Window">
+    <Setter Property="FlowDirection" Value="{DynamicResource AppFlowDirection}" />
     <Setter Property="Background" Value="{DynamicResource PageBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}" />
     <Setter Property="FontSize" Value="14" />
+  </Style>
+
+  <!-- Detached popup roots must follow a live language change too. Layout mirrors margins, dock positions and
+       navigation; leaf images and non-directional icons retain their physical appearance. -->
+  <Style Selector="ContextMenu, MenuFlyoutPresenter, ToolTip">
+    <Setter Property="FlowDirection" Value="{DynamicResource AppFlowDirection}" />
+    <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}" />
+  </Style>
+  <Style Selector="PathIcon">
+    <Setter Property="FlowDirection" Value="LeftToRight" />
+  </Style>
+  <Style Selector="ToggleSwitch">
+    <Setter Property="OnContent" Value="{DynamicResource triggers.enabled}" />
+    <Setter Property="OffContent" Value="{DynamicResource watch.status_off}" />
+  </Style>
+  <Style Selector="PathIcon.chevron, PathIcon.directional">
+    <Setter Property="FlowDirection" Value="{DynamicResource AppFlowDirection}" />
+  </Style>
+  <!-- Paths, patterns and keyboard chords keep their syntax order while Arabic runs still shape normally. -->
+  <Style Selector="TextBox.technical, TextBlock.technical, SelectableTextBlock.technical">
+    <Setter Property="FlowDirection" Value="LeftToRight" />
+  </Style>
+  <Style Selector="TextBlock.filename, SelectableTextBlock.filename">
+    <Setter Property="FlowDirection" Value="LeftToRight" />
+    <Setter Property="TextAlignment" Value="{DynamicResource AppFileNameAlignment}" />
   </Style>
 
   <Style Selector="TextBlock.h1">

@@ -20,6 +20,7 @@ public sealed class ThemeService(IPlatformServices platform)
     private const string Latin = "fonts:Filee#Noto Sans";
     private const string Korean = "fonts:Filee#Noto Sans KR";
     private const string Chinese = "fonts:Filee#Noto Sans SC";
+    private const string Arabic = "fonts:Filee#Noto Sans Arabic";
     private const string SystemFallbacks = "Segoe UI, Malgun Gothic, Microsoft YaHei, PingFang SC, Apple SD Gothic Neo, sans-serif";
 
     public void Apply(ThemeSettings theme, string language)
@@ -62,7 +63,9 @@ public sealed class ThemeService(IPlatformServices platform)
         var cjk = language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
             ? $"{Chinese}, {Korean}"
             : $"{Korean}, {Chinese}";
-        res["AppFontFamily"] = FontFamily.Parse($"{Latin}, {cjk}, {SystemFallbacks}");
+        res["AppFontFamily"] = FontFamily.Parse(language == "ar"
+            ? $"{Arabic}, {Latin}, Noto Sans Arabic, Tahoma, {cjk}, {SystemFallbacks}"
+            : $"{Latin}, {cjk}, {Arabic}, {SystemFallbacks}");
 
         Motion.Configure(theme.ReduceMotion, () => platform.PrefersReducedMotion);
     }

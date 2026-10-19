@@ -132,7 +132,7 @@
             <TextBlock Text="{DynamicResource triggers.excluded_pick}" />
           </StackPanel>
           <Button.Flyout>
-            <Flyout Placement="BottomEdgeAlignedLeft">
+            <Flyout Placement="{DynamicResource AppPopupPlacement}">
               <StackPanel Spacing="8" Width="280">
                 <TextBox Text="{Binding RunningSearch}" Watermark="{DynamicResource common.search}">
                   <TextBox.InnerLeftContent>

@@ -48,7 +48,7 @@
                 <TextBlock Classes="label" Text="{DynamicResource watch.folder}" />
                 <DockPanel>
                   <Button DockPanel.Dock="Right" Margin="8,0,0,0" Content="{DynamicResource presets.browse}" Click="OnBrowseFolder" />
-                  <TextBox Text="{Binding Folder}" PlaceholderText="{DynamicResource watch.folder_placeholder}" />
+                  <TextBox Classes="technical" Text="{Binding Folder}" PlaceholderText="{DynamicResource watch.folder_placeholder}" />
                 </DockPanel>
               </StackPanel>
 
@@ -68,7 +68,7 @@
                 <TextBlock Classes="label" Text="{DynamicResource watch.output}" />
                 <DockPanel>
                   <Button DockPanel.Dock="Right" Margin="8,0,0,0" Content="{DynamicResource presets.browse}" Click="OnBrowseOutput" />
-                  <TextBox Text="{Binding OutputFolder}" PlaceholderText="{DynamicResource watch.output_placeholder}" />
+                  <TextBox Classes="technical" Text="{Binding OutputFolder}" PlaceholderText="{DynamicResource watch.output_placeholder}" />
                 </DockPanel>
               </StackPanel>
 
@@ -151,7 +151,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="app:FailureItem">
                         <StackPanel>
-                          <SelectableTextBlock Classes="caption" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
+                          <SelectableTextBlock Classes="caption filename" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
                           <SelectableTextBlock Classes="caption" Text="{Binding Reason}" TextWrapping="Wrap" />
                         </StackPanel>
                       </DataTemplate>

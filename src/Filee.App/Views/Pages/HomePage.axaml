@@ -134,7 +134,7 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="app:FailureItem">
                       <StackPanel>
-                        <SelectableTextBlock Classes="caption" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
+                        <SelectableTextBlock Classes="caption filename" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
                         <SelectableTextBlock Classes="caption danger" Text="{Binding Reason}" TextWrapping="Wrap" />
                       </StackPanel>
                     </DataTemplate>

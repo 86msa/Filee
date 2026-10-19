@@ -78,7 +78,7 @@
           <!-- 1. Base name: typed, or built with the part buttons -->
           <StackPanel Spacing="6">
             <TextBlock Classes="label" Text="{DynamicResource watch.name}" />
-            <TextBox Text="{Binding NamePattern}" PlaceholderText="{Binding NamePlaceholder}" />
+            <TextBox Classes="technical" Text="{Binding NamePattern}" PlaceholderText="{Binding NamePlaceholder}" />
             <ItemsControl ItemsSource="{Binding Tokens}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -123,12 +123,12 @@
                       <ComboBox DockPanel.Dock="Left" Width="190" Margin="0,0,8,0" ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" />
                       <Panel>
                         <Grid ColumnDefinitions="*,Auto,*" IsVisible="{Binding ShowArrow}">
-                          <TextBox Text="{Binding Find}" PlaceholderText="{Binding FindPlaceholder}" />
-                          <TextBlock Grid.Column="1" Classes="muted" Text="→" Margin="8,0" VerticalAlignment="Center" />
+                          <TextBox Classes="technical" Text="{Binding Find}" PlaceholderText="{Binding FindPlaceholder}" />
+                          <TextBlock Grid.Column="1" Classes="muted" Text="{DynamicResource AppForwardArrow}" Margin="8,0" VerticalAlignment="Center" />
                           <TextBox Grid.Column="2" Text="{Binding Replace}" PlaceholderText="{Binding ReplacePlaceholder}" />
                         </Grid>
-                        <TextBox Text="{Binding Find}" PlaceholderText="{Binding FindPlaceholder}" IsVisible="{Binding ShowFindOnly}" />
-                        <TextBox Text="{Binding Replace}" PlaceholderText="{Binding ReplacePlaceholder}" IsVisible="{Binding ShowReplaceOnly}" />
+                        <TextBox Classes="technical" Text="{Binding Find}" PlaceholderText="{Binding FindPlaceholder}" IsVisible="{Binding ShowFindOnly}" />
+                        <TextBox Classes="technical" Text="{Binding Replace}" PlaceholderText="{Binding ReplacePlaceholder}" IsVisible="{Binding ShowReplaceOnly}" />
                       </Panel>
                     </DockPanel>
                     <TextBlock Classes="caption danger" Text="{Binding Error}" TextWrapping="Wrap" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
@@ -152,18 +152,18 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:RenamePreview">
                     <Grid ColumnDefinitions="*,Auto,*" Margin="0,2">
-                      <TextBlock Classes="caption" Text="{Binding Before}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="1" Classes="muted" Text="→" Margin="8,0" />
-                      <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="{Binding After}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      <TextBlock Classes="caption filename" Text="{Binding Before}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Classes="muted" Text="{DynamicResource AppForwardArrow}" Margin="8,0" />
+                      <TextBlock Classes="filename" Grid.Column="2" FontWeight="SemiBold" Text="{Binding After}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <TextBlock Classes="caption" Text="{DynamicResource watch.rename_try}" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto,*">
-                <TextBox Text="{Binding CustomName}" PlaceholderText="{DynamicResource watch.rename_try_placeholder}" />
-                <TextBlock Grid.Column="1" Classes="muted" Text="→" Margin="8,0" VerticalAlignment="Center" />
-                <SelectableTextBlock Grid.Column="2" FontWeight="SemiBold" Text="{Binding CustomResult}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <TextBox Classes="technical" Text="{Binding CustomName}" PlaceholderText="{DynamicResource watch.rename_try_placeholder}" />
+                <TextBlock Grid.Column="1" Classes="muted" Text="{DynamicResource AppForwardArrow}" Margin="8,0" VerticalAlignment="Center" />
+                <SelectableTextBlock Classes="filename" Grid.Column="2" FontWeight="SemiBold" Text="{Binding CustomResult}" VerticalAlignment="Center" TextWrapping="Wrap" />
               </Grid>
             </StackPanel>
           </Border>

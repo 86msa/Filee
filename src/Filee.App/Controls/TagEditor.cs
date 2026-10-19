@@ -12,6 +12,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -51,7 +52,8 @@ public sealed record TagSuggestion(string Value, string Text, string? Detail = n
 /// <remarks>
 /// Keyboard: Enter / Tab / separators add the typed text (Tab only while there is text, so it still moves focus
 /// otherwise); ↓ / ↑ pick a suggestion and Enter or Tab takes it; Esc closes the suggestions, then clears the text;
-/// Backspace in the empty box removes the last chip; ← at the start of the box walks into the chips, where ← / → move,
+/// Backspace in the empty box removes the last chip; the arrow toward the chips at the input boundary enters them
+/// (← in LTR, → in RTL), where ← / → follow their physical positions;
 /// Delete / Backspace remove and Esc / Tab return to the box.
 /// </remarks>
 [TemplatePart("PART_Input", typeof(TextBox))]
@@ -241,6 +243,16 @@ public class TagEditor : TemplatedControl
         if (_input is null)
             return;
         var hasText = !string.IsNullOrWhiteSpace(_input.Text);
+        // The token editor itself is LTR syntax, but the chips are laid out in the UI's reading order.
+        var rtl = FlowDirection == FlowDirection.RightToLeft;
+        if (e.Key == (rtl ? Key.Right : Key.Left)
+            && _input.CaretIndex == (rtl ? _input.Text?.Length ?? 0 : 0)
+            && _input.SelectionStart == _input.SelectionEnd && Tags is { Count: > 0 })
+        {
+            FocusChip(Tags.Count - 1);
+            e.Handled = true;
+            return;
+        }
         switch (e.Key)
         {
             case Key.Enter:
@@ -259,11 +271,6 @@ public class TagEditor : TemplatedControl
             case Key.Back when string.IsNullOrEmpty(_input.Text):
                 if (Tags is { Count: > 0 } tags)
                     RemoveCommand?.Execute(tags[^1]);
-                e.Handled = true;
-                break;
-
-            case Key.Left when _input.CaretIndex == 0 && _input.SelectionStart == _input.SelectionEnd && Tags is { Count: > 0 }:
-                FocusChip(Tags.Count - 1);
                 e.Handled = true;
                 break;
 
@@ -417,7 +424,13 @@ public class TagEditor : TemplatedControl
         if (e.Source is not Control { DataContext: TagChip chip } || Tags is not { } tags)
             return;
         var index = IndexOf(tags, chip);
-        switch (e.Key)
+        var key = FlowDirection == FlowDirection.RightToLeft ? e.Key switch
+        {
+            Key.Left => Key.Right,
+            Key.Right => Key.Left,
+            _ => e.Key,
+        } : e.Key;
+        switch (key)
         {
             case Key.Left:
                 FocusChip(Math.Max(0, index - 1));
