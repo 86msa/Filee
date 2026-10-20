@@ -1,6 +1,6 @@
 # Arabic shape references
 
-Generated with Pillow 11.3.0 + libraqm (FriBidi/HarfBuzz), independently of the Filee PDF renderer.
+Generated with Pillow 12.3.0 + libraqm 0.10.5 (FriBidi/HarfBuzz), independently of the Filee PDF renderer.
 Font: the exact SHA-256 verified static NotoSansArabic-Regular.ttf fetched by build/fetch-fonts.ps1.
 48 pixels, direction rtl, language ar, baseline (1050,100), white 1100×160 RGB canvas.
 
