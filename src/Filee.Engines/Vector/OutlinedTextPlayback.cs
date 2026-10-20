@@ -27,7 +27,7 @@ internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTex
 
     private readonly Dictionary<string, Font?> _shapers = new(StringComparer.Ordinal);
     private ArabicTextLayout? _arabic;
-    private readonly HashSet<SvgTextSource> _usedSources = [];
+    private readonly HashSet<SvgTextSource> _usedSources = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>Draws every command of <paramref name="picture"/> onto <paramref name="canvas"/>.</summary>
     public void Draw(ShimSkiaSharp.SKPicture picture, SKCanvas canvas)

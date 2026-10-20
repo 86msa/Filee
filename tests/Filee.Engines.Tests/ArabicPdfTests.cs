@@ -155,7 +155,7 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
     {
         var input = Path.Combine(fx.NewFolder(), "رسم عربي.svg");
         File.WriteAllText(input, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"400\">" +
-            string.Concat(Samples.Select((s, i) => $"<text direction=\"rtl\" x=\"760\" y=\"{50 + i * 60}\" font-size=\"20\">{OpcWriter.Escape(s)}</text>")) + "</svg>");
+            string.Concat(Samples.Append(Samples[0]).Select((s, i) => $"<text direction=\"rtl\" x=\"760\" y=\"{50 + i * 60}\" font-size=\"20\">{OpcWriter.Escape(s)}</text>")) + "</svg>");
         var diagnostics = Environment.GetEnvironmentVariable("FILEE_ARABIC_PDF_ARTIFACTS");
         if (!string.IsNullOrEmpty(diagnostics))
         {
@@ -182,6 +182,8 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
         var pdf = Assert.Single(result.Outputs);
         SaveArtifacts("svg", input, pdf);
         AssertPdf(pdf);
+        var text = PdfDocumentReader.PlainText(PdfDocumentReader.ReadText(pdf));
+        Assert.Equal(2, text.Split(Samples[0], StringSplitOptions.None).Length - 1);
     }
 
     [Theory]
