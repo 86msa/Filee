@@ -2,29 +2,14 @@ name: Publish verified Arabic preview
 
 on:
   push:
-    tags: ['publish-arabic-v*', 'cancel-arabic-*']
+    tags: ['publish-arabic-v*']
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  cancel:
-    if: startsWith(github.ref_name, 'cancel-arabic-')
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      actions: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Cancel the redundant documentation-only native build
-        run: |
-          run="${GITHUB_REF_NAME#cancel-arabic-}"
-          [[ "$run" =~ ^[0-9]+$ ]]
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/cancel"
   publish:
-    if: startsWith(github.ref_name, 'publish-arabic-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:

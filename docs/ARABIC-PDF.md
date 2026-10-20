@@ -112,8 +112,46 @@ tests/Filee.Engines.Tests/Fixtures/Arabic/reference-2.png
 
 تصحيح اختلافات المنصات: أخفقت جولة CI السابقة في SVG على Windows وmacOS ARM64، وكُشف عبر تقارير TRX أن النصوص تتحول إلى كتل glyphs لا تحتفظ بسلسلة Unicode. عولجت الكتل اعتماداً على عناصر SVG الأصلية ومواضعها، واجتازت مجموعة PDF العربية الـ14 فحص Windows الموجّه (Run 39376783859). لم تُنشر حزم الجولة الفاشلة.
 
-تصحيح DMG: حافظ استخراج tar بواسطة Python على الملفات العادية لكنه أسقط سمات macOS الممتدة التي تحمل توقيع بعض تجميعات .NET مثل `System.Web.dll`. نجح تحقق التوقيع عند فك الأرشيف بأداة النظام، وفشل بعد فك Python. يستخدم مصنّع DMG الآن BSD tar على macOS بعد التحقق من سلامة مسارات أعضاء الأرشيف وروابطهم؛ يبقى `codesign --verify --deep --strict` إلزامياً. التوقيع المحلي ad-hoc محفوظ؛ الحزمة ما تزال غير موثقة لدى Apple. مصدر تصحيح التغليف: `09a36bba0ff68603b848581099d5a632043d194f`، وجولة التحقق `39378403704` اجتازت فحوص التطبيق والحزم على المنصات الخمس. توقفت محاولة Intel الأولى بسبب قفل DiskImages مؤقت (`Resource busy`)؛ أُعيدت مهمتها على بيئة نظيفة واجتازت إنشاء DMG والتحقق منه وتشغيله وإزالته. بقي مسار البناء المستخدم في الإصدار مطابقاً للمصدر المفحوص؛ عُكس تعديل تجريبي لإعادة المحاولة قبل نشر الفرع.
+تصحيح DMG: حافظ استخراج tar بواسطة Python على الملفات العادية لكنه أسقط سمات macOS الممتدة التي تحمل توقيع بعض تجميعات .NET مثل `System.Web.dll`. نجح تحقق التوقيع عند فك الأرشيف بأداة النظام، وفشل بعد فك Python. يستخدم مصنّع DMG الآن BSD tar على macOS بعد التحقق من سلامة مسارات أعضاء الأرشيف وروابطهم؛ يبقى `codesign --verify --deep --strict` إلزامياً. التوقيع المحلي ad-hoc محفوظ؛ الحزمة ما تزال غير موثقة لدى Apple. مصدر تصحيح التغليف: `09a36bba0ff68603b848581099d5a632043d194f`، وجولة التحقق `39378403704` اجتازت فحوص التطبيق والحزم على المنصات الخمس. توقفت محاولة Intel الأولى بسبب قفل DiskImages مؤقت (`Resource busy`)؛ أُعيدت مهمتها على بيئة نظيفة واجتازت إنشاء DMG والتحقق منه وتشغيله وإزالته. بقي مسار البناء المستخدم في الإصدار مطابقاً للمصدر المفحوص.
 
 نسخ مرجع المقارنة المرئية التي تحققت منها فعلياً: Pillow **12.3.0** وlibraqm **0.10.5**. صُححت تسمية النسخة في README المرافق للصور؛ الصور والخطوط نفسها ثابتة دون تغيير.
 
 نجحت جولة CI الأصلية **39378403704** بعد إعادة مهمة Intel وحدها على بيئة نظيفة؛ اجتازت المنصات الخمس جميع الاختبارات المنفذة واختبارات الحزم، ثم اجتازت حزم Ubuntu 22.04 بمعماريتي x64 وARM64. توثّق `VALIDATION.json` أعداد النجاح والتخطي واختبارات PDF والتثبيت لكل منصة. مصدر ملفات التطبيق المنشورة هو `09a36bba0ff68603b848581099d5a632043d194f`؛ تلي هذا المصدر تصحيحات توثيقية وتنظيف سير النشر فقط.
+
+## الإصدار المنشور والتحقق النهائي
+
+- الإصدار: **1.12.1-arabic.2** (Pre-release)، منشور في [86msa/Filee](https://github.com/86msa/Filee/releases/tag/arabic-v1.12.1-arabic.2).
+- المصدر: `09a36bba0ff68603b848581099d5a632043d194f`.
+- [بناء واختبارات المنصات والحزم](https://github.com/86msa/Filee/actions/runs/39378403704)، ثم [بوابة النشر](https://github.com/86msa/Filee/actions/runs/39382150285): نجحا.
+- اجتازت اختبارات الإصدار **8211** حالة تنفيذ، مع **386 متخطاة** و**صفر فشل**؛ مجموعة PDF العربية **14/14 على كل منصة** (70 تنفيذًا). أسماء الحالات المتخطاة مرفقة كاملة في VALIDATION.json.
+- على أنظمة Unix استُبعدت قبل التنفيذ حالتان خاصتان بـWindows (`ExplorerMenuTests.Every_native_import_exists_in_the_dll_it_names` و`ExplorerMenuTests.Reading_the_registered_package_never_throws`): ثماني حالات تنفيذ عبر المنصات الأربع، تُضاف إلى غير المشغّل ولا تُحسب ناجحة.
+- فُحص تثبيت وتشغيل وتحويل العربية وإزالة EXE وDEB، وفتح/نسخ/تشغيل/إزالة DMG؛ فُحصت ZIP والأرشيفات المحمولة نفسها. نجحت حزم Linux على Ubuntu 22.04 بمعماريتيه.
+- نُزّلت الحزم العشر المنشورة والتقارير الثلاثة، وطوبقت **13 قيمة SHA-256**؛ نجح فحص CRC لأرشيف Windows وملفي الصور/العينات.
+- أُعيد اختبار DEB x64 **المنشور** في حاوية Ubuntu 22.04 دون شبكة: تثبيت، PDF→TXT/PNG مع العينات العربية الخمس، تشغيل الواجهة وإغلاقها، وإزالة التثبيت: نجاح.
+- أُرفقت **325 صورة** (230 للواجهة العربية و95 لملفات PDF ومراجعها)، والمستندات الاصطناعية وPDF والنصوص المستخرجة.
+
+| المنصة | ناجحة | متخطاة | PDF عربية | التثبيت/التشغيل/الإزالة |
+|---|---:|---:|---:|---|
+| win-x64 | 1655 | 66 | 14 | نجاح |
+| linux-x64 | 1642 | 77 | 14 | نجاح |
+| linux-arm64 | 1640 | 79 | 14 | نجاح |
+| osx-x64 | 1637 | 82 | 14 | نجاح |
+| osx-arm64 | 1637 | 82 | 14 | نجاح |
+
+### التنزيلات
+
+| المنصة | التثبيت | محمولة |
+|---|---|---|
+| win | [EXE](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-win-Setup.exe) | [zip](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-win-Portable.zip) |
+| linux-x64 | [DEB](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-linux-x64.deb) | [tar.gz](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-linux-x64.tar.gz) |
+| linux-arm64 | [DEB](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-linux-arm64.deb) | [tar.gz](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-linux-arm64.tar.gz) |
+| osx-x64 | [DMG](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-osx-x64.dmg) | [tar.gz](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-osx-x64.tar.gz) |
+| osx-arm64 | [DMG](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-osx-arm64.dmg) | [tar.gz](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Filee-1.12.1-arabic.2-osx-arm64.tar.gz) |
+
+[SHA256SUMS.txt](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/SHA256SUMS.txt) · [VALIDATION.json](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/VALIDATION.json) · [Screenshots-Arabic.zip](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/Screenshots-Arabic.zip) · [PDF-Arabic-Samples.zip](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.2/PDF-Arabic-Samples.zip)
+
+### ما لم يُعتمد
+
+الاختبارات المتخطاة ليست نجاحاً. الإخفاقات المحلية الأربع للمحركات الاختيارية مدونة أعلاه ولا تُمحى بنجاح حزم الإصدار. لم تُختبر Windows 10/11 وجميع إصدارات macOS/توزيعات Linux يدوياً؛ استُخدمت بيئات CI الأصلية Windows وmacOS 15 وUbuntu 24.04، إضافة إلى Ubuntu 22.04. لم يُختبر قبول Gatekeeper لتنزيل عام ولم تتوفر بيانات Developer ID/Notarization أو Authenticode. نسخة macOS ad-hoc وغير موثقة، وWindows غير موقعة. لا توجد RPM لعدم اختبار توزيعة مستهدفة. لم تُختبر مطابقة PDF/A بأداة مستقلة أو OCR أو تطابق القوالب المكتبية المعقدة مع Word.
+
+لم تُدمج التعديلات في `main`؛ بقي عند `41ed3b271d29a5d94fc101000f017ff2ea6cf20f`. حُفظ إعداد البيئة السحابية القابل لإعادة الاستخدام بإصدار SDK 10.0.402 وتعليمات التفعيل والتشغيل؛ حفظ المسودة لا يعني نشر لقطة بيئة جديدة.
