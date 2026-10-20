@@ -2,139 +2,14 @@ name: Publish verified Arabic preview
 
 on:
   push:
-    tags: ['publish-arabic-v*', 'inspect-arabic-*', 'retry-arabic-*']
+    tags: ['publish-arabic-v*']
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  retry:
-    if: startsWith(github.ref_name, 'retry-arabic-')
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: write
-      contents: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Retry the completed job on a fresh runner
-        shell: bash
-        run: |
-          set -euo pipefail
-          job="${GITHUB_REF_NAME##*-job}"
-          [[ "$job" =~ ^[0-9]+$ ]]
-          if ! gh api --method POST "repos/$GITHUB_REPOSITORY/actions/jobs/$job/rerun" > retry.json 2> retry-error.txt; then
-            python3 - <<'PYTHON'
-          import pathlib
-          text = pathlib.Path('retry-error.txt').read_text() + pathlib.Path('retry.json').read_text()
-          print('::error::Retry API: ' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-          PYTHON
-            exit 1
-          fi
-          echo 'Fresh-runner retry requested.' >> "$GITHUB_STEP_SUMMARY"
-
-  inspect:
-    if: startsWith(github.ref_name, 'inspect-arabic-')
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: read
-      contents: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Read native failure reports
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          run="${GITHUB_REF_NAME#inspect-arabic-}"
-          run="${run%%-*}"
-          [[ "$run" =~ ^[0-9]+$ ]]
-          gh run download "$run" --repo "$GITHUB_REPOSITORY" --pattern 'windows-arabic-test-results' --pattern 'unix-test-results-*' --dir Reports
-          python3 - <<'PYTHON'
-          import pathlib, xml.etree.ElementTree as ET, os
-          lines = []
-          for file in pathlib.Path('Reports').rglob('*.trx'):
-              root = ET.parse(file)
-              lines.append(str(file) + ': ' + str(root.find('.//{*}Counters').attrib))
-              for row in root.findall('.//{*}UnitTestResult'):
-                  if row.get('outcome') not in ('Passed', 'NotExecuted'):
-                      text = row.get('testName', '') + ': ' + ' '.join(row.itertext())
-                      print('::error::' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-                      lines.append(text)
-          for file in pathlib.Path('Reports').rglob('svg-model.txt'):
-              lines.append(str(file) + '\n' + file.read_text(encoding='utf-8'))
-          pathlib.Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n\n'.join(lines), encoding='utf-8')
-          PYTHON
-
-      - name: Inspect a failed packaging job
-        if: always() && contains(github.ref_name, '-job')
-        shell: bash
-        run: |
-          set -euo pipefail
-          job="${GITHUB_REF_NAME##*-job}"
-          [[ "$job" =~ ^[0-9]+$ ]]
-          if ! gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > packaging.log 2> packaging-api-error.txt; then
-            python3 - <<'PYTHON'
-          import pathlib
-          text = pathlib.Path('packaging-api-error.txt').read_text() + pathlib.Path('packaging.log').read_text()
-          print('::error::Log API: ' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-          PYTHON
-            exit 1
-          fi
-          python3 - <<'PYTHON'
-          import pathlib, re
-          text = '\n'.join(pathlib.Path('packaging.log').read_text(encoding='utf-8', errors='replace').splitlines()[-150:])
-          text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
-          for offset in range(0, len(text), 3000):
-              part = text[offset:offset + 3000]
-              print('::error::Packaging log: ' + part.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-          PYTHON
-
-  probe:
-    if: startsWith(github.ref_name, 'inspect-arabic-') && contains(github.ref_name, '-probe')
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
-    env:
-      FILEE_ARABIC_PDF_ARTIFACTS: ${{ github.workspace }}/TestResults/arabic-pdf
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-      - name: Fonts and native document engine
-        run: |
-          ./build/fetch-fonts.ps1
-          ./build/fetch-engines.ps1 -Only rhwp,7zip,pandoc
-      - name: Arabic content regression tests
-        run: dotnet test tests/Filee.Engines.Tests -c Release --filter FullyQualifiedName~ArabicPdfTests --logger trx --results-directory TestResults
-      - name: Public failure details
-        if: always()
-        run: |
-          foreach ($file in Get-ChildItem TestResults -Filter *.trx -Recurse) {
-            [xml]$trx = Get-Content -Raw $file.FullName
-            foreach ($row in $trx.TestRun.Results.UnitTestResult) {
-              if ($row.outcome -notin @('Passed','NotExecuted')) {
-                $text = "$($row.testName): $($row.Output.ErrorInfo.Message) $($row.Output.ErrorInfo.StackTrace)"
-                Write-Output ('::error::' + $text.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A'))
-              }
-            }
-          }
-          if (Test-Path TestResults/arabic-pdf/svg-model.txt) {
-            $trace = Get-Content -Raw TestResults/arabic-pdf/svg-model.txt
-            Write-Output ('::notice::SVG trace: ' + $trace.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A'))
-          }
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: windows-pdf-probe
-          path: TestResults/
-
   publish:
-    if: startsWith(github.ref_name, 'publish-arabic-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
