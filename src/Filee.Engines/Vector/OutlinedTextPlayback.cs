@@ -44,9 +44,29 @@ internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTex
     {
         // A uniform SVG text element is one child picture. Its old per-word commands can already be in visual
         // order, including punctuation merged into a Latin run. Shape its original paragraph once instead.
-        if (sources is null || picture.Commands is not { Count: > 0 } commands || commands.Any(c => c is not DrawTextCanvasCommand))
+        if (sources is null || picture.Commands is not { Count: > 0 } commands)
             return false;
-        var draws = commands.Cast<DrawTextCanvasCommand>().ToArray();
+        var draws = new List<(string Text, float X, float Y, ShimSkiaSharp.SKPaint? Paint, ShimSkiaSharp.SKFont? Font)>();
+        foreach (var command in commands)
+        {
+            switch (command)
+            {
+                case DrawTextCanvasCommand text:
+                    draws.Add((text.Text ?? "", text.X, text.Y, text.Paint, text.Font));
+                    break;
+                case DrawPositionedTextRunCanvasCommand run when run.Fragments is { Count: > 0 } fragments
+                    && fragments.All(f => f.RotationDegrees == 0 && f.ScaleX == 1):
+                    draws.AddRange(fragments.Select(f => (f.Text, f.Point.X, f.Point.Y, run.Paint, run.Font)));
+                    break;
+                case DrawTextBlobCanvasCommand blob when blob.TextBlob?.Text is { } text:
+                    draws.Add((text, blob.X, blob.Y, blob.Paint, blob.TextBlob.Font));
+                    break;
+                default:
+                    return false;
+            }
+        }
+        if (draws.Count == 0)
+            return false;
         var signature = SvgTextSource.Characters(string.Concat(draws.Select(d => d.Text)));
         var source = sources.FirstOrDefault(s => s.Simple && ArabicTextLayout.ContainsArabic(s.Text) && !_usedSources.Contains(s) && SvgTextSource.Characters(s.Text) == signature);
         if (source is null || draws[0].Paint is not { } shimPaint)

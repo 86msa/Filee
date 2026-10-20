@@ -156,6 +156,27 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
         var input = Path.Combine(fx.NewFolder(), "رسم عربي.svg");
         File.WriteAllText(input, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"400\">" +
             string.Concat(Samples.Select((s, i) => $"<text direction=\"rtl\" x=\"760\" y=\"{50 + i * 60}\" font-size=\"20\">{OpcWriter.Escape(s)}</text>")) + "</svg>");
+        var diagnostics = Environment.GetEnvironmentVariable("FILEE_ARABIC_PDF_ARTIFACTS");
+        if (!string.IsNullOrEmpty(diagnostics))
+        {
+            using var drawing = Filee.Engines.Vector.SvgRenderer.Load(input);
+            var lines = new List<string>();
+            void Walk(ShimSkiaSharp.SKPicture picture, int depth)
+            {
+                foreach (var command in picture.Commands ?? [])
+                {
+                    lines.Add(new string(' ', depth) + command.GetType().Name);
+                    if (command is ShimSkiaSharp.DrawPictureCanvasCommand { Picture: { } child }) Walk(child, depth + 1);
+                    else if (command is ShimSkiaSharp.DrawTextCanvasCommand t) lines.Add($"TEXT {t.X} {t.Y} [{t.Text}]");
+                    else if (command is ShimSkiaSharp.DrawTextBlobCanvasCommand b) lines.Add($"BLOB {b.X} {b.Y} [{b.TextBlob?.Text}]");
+                    else if (command is ShimSkiaSharp.DrawPositionedTextRunCanvasCommand r)
+                        foreach (var fragment in r.Fragments ?? []) lines.Add($"FRAGMENT {fragment.Point.X} {fragment.Point.Y} [{fragment.Text}]");
+                }
+            }
+            if (drawing.Svg.Model is { } model) Walk(model, 0);
+            Directory.CreateDirectory(diagnostics);
+            File.WriteAllLines(Path.Combine(diagnostics, "svg-model.txt"), lines);
+        }
         var result = await fx.ConvertAsync([input], new Preset { TargetFormat = "pdf" });
         Assert.True(result.State == JobState.Completed, string.Join("; ", result.Files.Select(f => f.ErrorDetail)));
         var pdf = Assert.Single(result.Outputs);
