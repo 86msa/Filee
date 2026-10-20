@@ -1,4 +1,5 @@
-// Draws an Svg.Skia drawing with its text converted to glyph outlines, for PDF output. SkiaSharp's PDF backend is
+// Arabic text uses embedded Unicode font subsets; other Svg.Skia text retains glyph outlines for PDF output.
+// SkiaSharp's PDF backend is
 // built without a font subsetter and embeds every font file whole: one line of Korean text adds the 13 MB Malgun
 // Gothic font to the PDF. Outlines keep the text's exact shape at a few kilobytes (it is no longer selectable).
 // Text is shaped with HarfBuzz the way Svg.Skia does it (adapted from SkiaModel.TextShaping.cs, Svg.Skia, MIT).
@@ -18,7 +19,7 @@ using SKTypeface = SkiaSharp.SKTypeface;
 
 namespace Filee.Engines.Vector;
 
-/// <summary>Plays back an Svg.Skia picture model, drawing text commands as paths.</summary>
+/// <summary>Plays back SVG graphics with searchable Arabic text and the existing outline path for other text.</summary>
 internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTextSource>? sources = null,
     ArabicPdfGlyphWriter? glyphWriter = null) : IDisposable
 {
@@ -46,7 +47,7 @@ internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTex
         // order, including punctuation merged into a Latin run. Shape its original paragraph once instead.
         if (sources is null || picture.Commands is not { Count: > 0 } commands)
             return false;
-        if (commands.Count == 1 && commands[0] is DrawTextBlobCanvasCommand { TextBlob.Text: null } opaque)
+        if (commands.Count == 1 && commands[0] is DrawTextBlobCanvasCommand opaque && string.IsNullOrEmpty(opaque.TextBlob?.Text))
             return DrawOpaqueText(opaque, canvas);
         var draws = new List<(string Text, float X, float Y, ShimSkiaSharp.SKPaint? Paint, ShimSkiaSharp.SKFont? Font)>();
         foreach (var command in commands)

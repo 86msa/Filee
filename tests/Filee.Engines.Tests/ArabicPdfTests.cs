@@ -170,7 +170,7 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
                     else if (command is ShimSkiaSharp.DrawTextCanvasCommand t) lines.Add($"TEXT {t.X} {t.Y} [{t.Text}]");
                     else if (command is ShimSkiaSharp.DrawTextBlobCanvasCommand b)
                     {
-                        lines.Add($"BLOB {b.X} {b.Y} [{b.TextBlob?.Text}]");
+                        lines.Add($"BLOB {b.X} {b.Y} [{b.TextBlob?.Text}] null={b.TextBlob?.Text is null}");
                         foreach (var point in b.TextBlob?.Points ?? []) lines.Add($"POINT {point.X} {point.Y}");
                     }
                     else if (command is ShimSkiaSharp.DrawPositionedTextRunCanvasCommand r)

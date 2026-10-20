@@ -41,3 +41,6 @@ DEB packages (Ubuntu 22.04/24.04 and compatible Debian dependencies):
 Use linux-arm64.deb for ARM64. Remove with: sudo apt remove filee
 apt owns this installation in /opt/filee; do not run the tar install.sh on it.
 User settings and converted documents are kept.
+When switching from a per-user tar installation to DEB, run that installation's
+uninstall.sh first, so an older ~/.local/bin/filee or desktop entry does not
+shadow the DEB installation. Settings and converted documents are retained.
