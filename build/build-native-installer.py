@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 
 
 def run(*args):
@@ -48,7 +49,7 @@ def main():
                 # Python's tar extractor ignores Apple's metadata; BSD tar restores it, like smoke-portable.
                 for member in tar.getmembers():
                     tarfile.data_filter(member, str(work))  # validate paths/links before native extraction
-                run('tar', '-xzf', str(archive.resolve()), '-C', str(work))
+                run('/usr/bin/tar', '-xzf', str(archive.resolve()), '-C', str(work))
             else:
                 tar.extractall(work, filter='data')
         source = work / name
@@ -136,7 +137,24 @@ def dmg(source, root, output, version):
         'هذه نسخة تجريبية غير موثقة لدى Apple؛ قد يمنع macOS تشغيل نسخة محملة.\n'
         'لا تتضمن الحزمة تعطيل حماية النظام. يحتفظ إلغاء التثبيت بالإعدادات والمستندات.\n', encoding='utf-8')
     run('codesign', '--verify', '--deep', '--strict', str(root / 'Filee.app'))
-    run('hdiutil', 'create', '-volname', f'Filee {version}', '-srcfolder', str(root), '-format', 'UDZO', str(output))
+    # DiskImages can report EBUSY transiently on hosted Intel runners. Keep incomplete images private, wait
+    # for its helper to release resources, and retry only this specific failure. Other errors fail immediately.
+    for attempt in range(4):
+        temporary = root.parent / f'image-{attempt}.dmg'
+        result = subprocess.run(['/usr/bin/hdiutil', 'create', '-fs', 'HFS+', '-volname', f'Filee {version}',
+                                 '-srcfolder', str(root), '-format', 'UDZO', str(temporary)],
+                                capture_output=True, text=True, timeout=180)
+        print(result.stdout, end='')
+        print(result.stderr, end='')
+        if result.returncode == 0:
+            shutil.move(str(temporary), str(output))
+            break
+        if 'Resource busy' not in result.stderr or attempt == 3:
+            raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+        temporary.unlink(missing_ok=True)
+        delay = 2 ** (attempt + 1)
+        print(f'DiskImages is busy; retrying creation in {delay} seconds.', flush=True)
+        time.sleep(delay)
     run('hdiutil', 'verify', str(output))
 
 
