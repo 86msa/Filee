@@ -223,6 +223,8 @@ internal sealed class ArabicDocumentPdf : IDisposable
                 TextBox(box, x, width);
             else if (inline is HShape shape)
                 Shape(shape, x, width);
+            else if (inline is HNote note)
+                Blocks(note.Blocks, x, width, CancellationToken.None);
         }
     }
 

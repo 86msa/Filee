@@ -85,6 +85,11 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
             Assert.True(read.NumberOfPages >= 3);
             Assert.Contains("الطالب محمد أحمد", LogicalText(pdf));
         }
+        var normalized = System.Text.RegularExpressions.Regex.Replace(LogicalText(pdf), @"\s+", " ");
+        for (var i = 0; i < Samples.Length; i++)
+            Assert.Equal((i < 2 ? 3 : 2) * 8, normalized.Split(Samples[i], StringSplitOptions.None).Length - 1);
+        for (var row = 1; row <= 25; row++)
+            Assert.Contains($"الطالب محمد أحمد — {row}\t", LogicalText(pdf));
         var merged = Path.Combine(fx.NewFolder(), "دمج عربي.pdf");
         await new PdfSharpConverter().MergeAsync([pdf, pdf], merged, TestContext.Current.CancellationToken);
         var split = await fx.ConvertAsync([merged], new Preset { TargetFormat = "pdf", Pdf = { SplitPages = true } });
@@ -95,7 +100,7 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
         var compressed = await fx.ConvertAsync([merged], new Preset { TargetFormat = "pdf", Pdf = { Compression = PdfCompression.Ebook } });
         Assert.True(compressed.State == JobState.Completed);
         Assert.Equal(before, LogicalText(Assert.Single(compressed.Outputs)));
-        Assert.Equal(before, string.Concat(split.Outputs.Select(LogicalText)));
+        Assert.Equal(before, string.Join('\n', split.Outputs.Select(LogicalText)));
         SaveArtifacts("long-table", input, pdf);
     }
 
@@ -250,11 +255,17 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
         paragraph.Inlines.Add(new HText("الس", new HCharFormat(Bold: true, Underline: true, Shade: "#FFFF00")));
         paragraph.Inlines.Add(new HText("لام", new HCharFormat(Italic: true, Strike: true, Color: "#003366")));
         paragraph.Inlines.Add(new HText(" عليكم — آلاء أحمد، إيمان (Invoice 2026/125) ١٢٥٬٠٠٠", default));
+        var note = new HNote(false);
+        var noteParagraph = new HParagraph();
+        noteParagraph.Inlines.Add(new HText("حاشية عربية محفوظة", default));
+        note.Blocks.Add(noteParagraph);
+        paragraph.Inlines.Add(note);
         section.Blocks.Add(paragraph);
         var path = Path.Combine(fx.NewFolder(), "تنسيق عربي.pdf");
         ArabicDocumentPdf.Write(document, path, TestContext.Current.CancellationToken);
         var text = PdfDocumentReader.PlainText(PdfDocumentReader.ReadText(path));
         Assert.Contains("السلام عليكم", text);
+        Assert.Contains("حاشية عربية محفوظة", text);
         Assert.Contains("آلاء أحمد، إيمان (Invoice 2026/125) ١٢٥٬٠٠٠", text);
         using var bitmap = Conversion.ToImage(File.ReadAllBytes(path));
         Assert.Contains(bitmap.Pixels, c => c.Red > 200 && c.Green > 200 && c.Blue < 100);
@@ -265,7 +276,7 @@ public sealed class ArabicPdfTests(EngineFixture fx) : IClassFixture<EngineFixtu
     private static string LogicalText(string path)
     {
         using var pdf = Open(path);
-        return string.Concat(PdfDocumentReader.PageTexts(path, Enumerable.Range(0, pdf.NumberOfPages).ToArray()));
+        return string.Join('\n', PdfDocumentReader.PageTexts(path, Enumerable.Range(0, pdf.NumberOfPages).ToArray()));
     }
 
     private static void AssertPdf(string path)
