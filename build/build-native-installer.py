@@ -43,7 +43,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix='filee-installer-') as temporary:
         work = pathlib.Path(temporary)
         with tarfile.open(archive) as tar:
-            tar.extractall(work, filter='data')
+            if suffix == '.dmg':
+                # Managed assemblies in Contents/MacOS carry code signatures in extended attributes.
+                # Python's tar extractor ignores Apple's metadata; BSD tar restores it, like smoke-portable.
+                for member in tar.getmembers():
+                    tarfile.data_filter(member, str(work))  # validate paths/links before native extraction
+                run('tar', '-xzf', str(archive.resolve()), '-C', str(work))
+            else:
+                tar.extractall(work, filter='data')
         source = work / name
         if suffix == '.deb':
             deb(source, work / 'deb', output, args.version, cpu)
