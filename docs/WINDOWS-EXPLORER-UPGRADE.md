@@ -29,3 +29,30 @@ The PDF implementation, platform support and existing limitations remain documen
 يعالج الإصدار **1.12.1-arabic.3** خطأ `0x80073D02` عند الترقية فوق النسخة الحالية، مع الحفاظ على الإعدادات والمحركات. يتحقق المثبّت من هوية الإضافة المسجّلة ومجلدها ويحتفظ بالتسجيل المطابق. لا يغلق Explorer بالقوة. أعاد اختبار Windows إنتاج الخطأ مع بقاء إضافة COM محمّلة، ثم اجتازت الترقية الاختبار مع بقاء التسجيل صحيحاً. نجحت اختبارات التشغيل وتحويل PDF العربية والإزالة. اجتازت المنصات الخمس اختبارات التطبيق والحزم؛ لم تُدمج التعديلات في `main`.
 
 Release: https://github.com/86msa/Filee/releases/tag/arabic-v1.12.1-arabic.3
+
+## Changed files
+
+- `installer/Filee.iss`: check the registered identity and effective external folder before redeployment.
+- `src/Filee.Platform.Windows/ExplorerMenuRegistration.cs`: preserve matching registration in the Settings action.
+- `tests/Filee.App.Tests/InstallerTests.cs`: keep Setup's expected full package identity in sync with the manifest.
+- `build/test-explorer-menu-upgrade.ps1`: reproduce the locked-package failure and test the real installer while COM remains active.
+- `build/smoke-windows-installer.ps1`: enable the modern menu during fresh installation and run the upgrade check.
+- `build/verify-arabic-release.py`: block publication without the successful reproduction/upgrade report.
+- `Directory.Build.props`, `.github/workflows/arabic-builds.yml`: preview version `1.12.1-arabic.3`.
+- `docs/ARABIC-RELEASE.md`, `docs/ARABIC-PDF.md`, this report: release notes, previous-report reference and verification details.
+
+## Published release verification
+
+[Release 1.12.1-arabic.3](https://github.com/86msa/Filee/releases/tag/arabic-v1.12.1-arabic.3) is public. [Publisher run 39386010845](https://github.com/86msa/Filee/actions/runs/39386010845) passed the native report and checksum gates, including the mandatory loaded COM upgrade result. Ubuntu 22.04 installation/conversion/desktop/uninstallation checks passed on both CPUs. All ten package download links were checked after publication. The downloaded public `VALIDATION.json` matches its SHA-256 in the public 13-entry manifest. The publisher independently verified all ten package checksums before publication.
+
+| Runtime | Passed | Skipped | Arabic PDF tests |
+|---|---:|---:|---:|
+| win-x64 | 1655 | 66 | 14 |
+| linux-x64 | 1642 | 77 | 14 |
+| linux-arm64 | 1640 | 79 | 14 |
+| osx-x64 | 1637 | 82 | 14 |
+| osx-arm64 | 1637 | 82 | 14 |
+
+Total: **8211 passed, 386 skipped, zero failures**, plus the installer/upgrade smoke checks. Each runtime passed 14 Arabic PDF tests (70 executions). Skips are listed in VALIDATION.json; they are not passes. As in the previous release, two Windows-only tests are excluded before execution on each Unix runtime (8 additional executions not run). The Linux local run could not execute six Windows/package-specific tests; those are separate from the native release results. Automated checks do not constitute a manual test on the reporter's PC or every Windows 10/11 version.
+
+[Download Windows Setup](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.3/Filee-1.12.1-arabic.3-win-Setup.exe) · [VALIDATION.json](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.3/VALIDATION.json) · [SHA256SUMS.txt](https://github.com/86msa/Filee/releases/download/arabic-v1.12.1-arabic.3/SHA256SUMS.txt)
