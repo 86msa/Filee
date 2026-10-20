@@ -62,7 +62,9 @@ jobs:
           import pathlib, re
           text = '\n'.join(pathlib.Path('packaging.log').read_text(encoding='utf-8', errors='replace').splitlines()[-150:])
           text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
-          print('::error::Packaging log: ' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          for offset in range(0, len(text), 3000):
+              part = text[offset:offset + 3000]
+              print('::error::Packaging log: ' + part.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
           PYTHON
 
   probe:
