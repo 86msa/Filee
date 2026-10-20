@@ -19,6 +19,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Read native failure reports
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -43,13 +44,20 @@ jobs:
           PYTHON
 
       - name: Inspect a failed packaging job
-        if: contains(github.ref_name, '-job')
+        if: always() && contains(github.ref_name, '-job')
         shell: bash
         run: |
           set -euo pipefail
           job="${GITHUB_REF_NAME##*-job}"
           [[ "$job" =~ ^[0-9]+$ ]]
-          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > packaging.log
+          if ! gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > packaging.log 2> packaging-api-error.txt; then
+            python3 - <<'PYTHON'
+          import pathlib
+          text = pathlib.Path('packaging-api-error.txt').read_text() + pathlib.Path('packaging.log').read_text()
+          print('::error::Log API: ' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PYTHON
+            exit 1
+          fi
           python3 - <<'PYTHON'
           import pathlib
           text = '\n'.join(pathlib.Path('packaging.log').read_text(encoding='utf-8', errors='replace').splitlines()[-150:])
