@@ -123,6 +123,13 @@ public static class ExplorerMenuRegistration
         if (!HasFiles(installFolder))
             return new ModernContextMenuResult(false, Error: $"{ExplorerMenuPackage.PackageFileName} or {ExplorerMenuPackage.DllFileName} is missing in {installFolder}.");
 
+        // The sparse manifest has its own version: updating the external DLL does not require deploying it again.
+        // Redeploying an unchanged package while its COM surrogate is running fails with ERROR_PACKAGES_IN_USE
+        // (0x80073D02). Preserve that registration instead of shutting down Explorer or its surrogate.
+        if (Find() is { ExternalLocation: { } location } registered
+            && registered.Version == ExplorerMenuPackage.ManifestVersion && SamePath(location, installFolder))
+            return new ModernContextMenuResult(true);
+
         var package = Path.Combine(installFolder, ExplorerMenuPackage.PackageFileName);
         var result = await RunPowerShellAsync(errorFile => BuildAddScript(package, installFolder, errorFile), elevated: true);
         if (result.Succeeded && GetState(installFolder) != ModernContextMenuState.On)

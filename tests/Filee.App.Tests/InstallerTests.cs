@@ -77,6 +77,9 @@ public class InstallerTests
         var script = Script;
         Assert.Contains($"ExplorerMenuName = '{ExplorerMenuPackage.PackageName}';", script);
         Assert.Contains($"ExplorerMenuFamily = '{ExplorerMenuPackage.FamilyName}';", script);
+        var publisherId = ExplorerMenuPackage.FamilyName[(ExplorerMenuPackage.PackageName.Length + 1)..];
+        var fullName = $"{ExplorerMenuPackage.PackageName}_{ExplorerMenuPackage.ManifestVersion}_{ExplorerMenuPackage.Architecture}__{publisherId}";
+        Assert.Contains($"ExplorerMenuFullName = '{fullName}';", script);
         Assert.Contains($"ExplorerMenuDll = '{ExplorerMenuPackage.DllFileName}';", script);
         Assert.Contains($"ExplorerMenuPackageFile = '{ExplorerMenuPackage.PackageFileName}';", script);
         Assert.Contains($"ExplorerMenuMinimumBuild = {ExplorerMenuPackage.MinimumBuild};", script);

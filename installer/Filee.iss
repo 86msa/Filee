@@ -133,6 +133,7 @@ const
   // ExplorerMenuPackage in src/Filee.Platform.Windows (InstallerScriptTests keeps these in sync).
   ExplorerMenuName = 'Filee.ExplorerMenu';
   ExplorerMenuFamily = 'Filee.ExplorerMenu_c73vxh346rtay';
+  ExplorerMenuFullName = 'Filee.ExplorerMenu_1.0.0.0_x64__c73vxh346rtay';
   ExplorerMenuDll = 'FileeExplorerMenu.dll';
   ExplorerMenuPackageFile = 'FileeExplorerMenu.msix';
   ExplorerMenuMinimumBuild = 22000;
@@ -153,6 +154,14 @@ var
 
 function GetPackagesByPackageFamily(PackageFamilyName: String; var Count: Cardinal; PackageFullNames: NativeInt;
   var BufferLength: Cardinal; Buffer: NativeInt): Integer;
+  external 'GetPackagesByPackageFamily@kernel32.dll stdcall delayload';
+
+function GetPackagePathByFullName2(PackageFullName: String; PackagePathType: Integer;
+  var PathLength: Cardinal; Path: String): Integer;
+  external 'GetPackagePathByFullName2@api-ms-win-appmodel-runtime-l1-1-3.dll stdcall delayload';
+
+function ReadRegisteredPackage(PackageFamilyName: String; var Count: Cardinal; var PackageFullName: NativeInt;
+  var BufferLength: Cardinal; Buffer: String): Integer;
   external 'GetPackagesByPackageFamily@kernel32.dll stdcall delayload';
 
 function IsFreshInstall: Boolean;
@@ -178,6 +187,46 @@ begin
   try
     Result := (GetPackagesByPackageFamily(ExplorerMenuFamily, Count, 0, Length, 0) = ERROR_INSUFFICIENT_BUFFER) and (Count > 0);
   except
+    Result := False;
+  end;
+end;
+
+// The manifest version is independent of the application version. Updating the external DLL does not require
+// deploying the same package again: that fails with 0x80073D02 when Explorer's COM surrogate is using it.
+// Check the exact identity AND external folder, so a different manifest or a relocated install is still registered.
+function IsExplorerMenuCurrent: Boolean;
+var
+  Count, Length: Cardinal;
+  NamePointer: NativeInt;
+  Name, Location: String;
+begin
+  Result := False;
+  try
+    Count := 0;
+    Length := 0;
+    if GetPackagesByPackageFamily(ExplorerMenuFamily, Count, 0, Length, 0) <> ERROR_INSUFFICIENT_BUFFER then
+      Exit;
+    // Only one exact registered version is safe to keep; staged packages alone do not count.
+    if (Count <> 1) or (Length = 0) then
+      Exit;
+    SetLength(Name, Length);
+    if ReadRegisteredPackage(ExplorerMenuFamily, Count, NamePointer, Length, Name) <> 0 then
+      Exit;
+    SetLength(Name, Length - 1);
+    if Name <> ExplorerMenuFullName then
+      Exit;
+    Length := 0;
+    if GetPackagePathByFullName2(ExplorerMenuFullName, 5, Length, '') <> ERROR_INSUFFICIENT_BUFFER then
+      Exit;
+    if Length = 0 then
+      Exit;
+    SetLength(Location, Length);
+    if GetPackagePathByFullName2(ExplorerMenuFullName, 5, Length, Location) <> 0 then
+      Exit;
+    SetLength(Location, Length - 1);
+    Result := CompareText(RemoveBackslashUnlessRoot(Location), RemoveBackslashUnlessRoot(ExpandConstant('{app}'))) = 0;
+  except
+    // If Windows cannot confirm the location, attempt registration and report any real deployment failure.
     Result := False;
   end;
 end;
@@ -237,6 +286,11 @@ procedure RegisterExplorerMenu(RemoveFirst: Boolean);
 var
   Command, Error: String;
 begin
+  if IsExplorerMenuCurrent then
+  begin
+    Log('Explorer menu registration already current; keeping the active package.');
+    Exit;
+  end;
   WizardForm.StatusLabel.Caption := CustomMessage('StatusExplorerMenu');
   Command := 'Add-AppxPackage -Path ' + PsQuote(ExpandConstant('{app}\') + ExplorerMenuPackageFile) +
     ' -ExternalLocation ' + PsQuote(ExpandConstant('{app}')) + ' -AllowUnsigned -ForceUpdateFromAnyVersion';

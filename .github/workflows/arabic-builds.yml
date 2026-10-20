@@ -11,7 +11,7 @@ on:
       version:
         description: 'Preview version (three numbers and optional prerelease suffix)'
         type: string
-        default: '1.12.1-arabic.2'
+        default: '1.12.1-arabic.3'
         required: true
       create_draft:
         description: 'Collect verified packages in a draft prerelease'
@@ -34,7 +34,7 @@ jobs:
       - name: Validate preview version
         id: version
         env:
-          PACKAGE_VERSION: ${{ inputs.version || '1.12.1-arabic.2' }}
+          PACKAGE_VERSION: ${{ inputs.version || '1.12.1-arabic.3' }}
         run: |
           if [[ ! "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
             echo 'Invalid package version' >&2

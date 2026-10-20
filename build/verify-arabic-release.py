@@ -32,6 +32,12 @@ for rid in runtimes:
     installed = json.loads(installs[0].read_text(encoding='utf-8-sig'))
     assert installed['runtime'] == rid and installed['version'] == report['version'], installed
     assert all(installed[key] == 'passed' for key in ('install', 'arabic_pdf', 'desktop', 'uninstall')), installed
+    if rid == 'win-x64':
+        upgrades = list(directory.glob('**/native-installers/win-x64/explorer-upgrade.json'))
+        assert len(upgrades) == 1, 'Missing loaded Explorer extension upgrade test'
+        upgrade = json.loads(upgrades[0].read_text(encoding='utf-8-sig'))
+        assert upgrade['original_error'] == '0x80073D02' and upgrade['loaded_com_upgrade'] == 'passed', upgrade
+        installed['explorer_upgrade'] = upgrade
     images = list(directory.glob('**/arabic-pdf/**/*.png'))
     assert len(images) >= 9, (rid, 'Missing PDF visual artifacts')
     report['platforms'][rid] = {'counts': dict(counts), 'arabic_pdf_passed': len(arabic), 'installation': installed,

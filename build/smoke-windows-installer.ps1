@@ -12,12 +12,15 @@ function Invoke-Exe([string]$File, [string[]]$Arguments) {
     if ($process.ExitCode -ne 0) { throw "$File exited with $($process.ExitCode)" }
 }
 $setup = (Resolve-Path (Join-Path $Packages "Filee-$Version-win-Setup.exe")).Path
-Invoke-Exe $setup @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NoStart=1', '/TASKS=""',
+Invoke-Exe $setup @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NoStart=1', '/TASKS="contextmenu,contextmenu\top"',
     "/DIR=`"$install`"", "/LOG=`"$(Join-Path $work 'setup.log')`"")
 $app = Join-Path $install 'Filee.exe'
 $cli = Join-Path $install 'filee-cli.exe'
 try {
     if (-not (Test-Path $app) -or -not (Test-Path $cli)) { throw 'The installer did not install both executables.' }
+    $report = Join-Path $PSScriptRoot '../TestResults/native-installers/win-x64'
+    Invoke-Exe "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', "`"$(Join-Path $PSScriptRoot 'test-explorer-menu-upgrade.ps1')`"", '-Setup', "`"$setup`"", '-Install', "`"$install`"", '-Report', "`"$report`"")
     python (Join-Path $PSScriptRoot 'smoke-arabic-pdf.py') --cli $cli --work (Join-Path $work 'installed-arabic')
     if ($LASTEXITCODE -ne 0) { throw 'Installed CLI Arabic PDF validation failed.' }
     $desktop = Start-Process -FilePath $app -ArgumentList @('--settings', '--install-engines=', '--context-menu=off', '--start-with-system=off') -PassThru

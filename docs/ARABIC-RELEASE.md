@@ -1,6 +1,8 @@
-# Filee 1.12.1-arabic.2 — Arabic PDF preview / معاينة PDF العربية
+# Filee 1.12.1-arabic.3 — Arabic PDF preview / معاينة PDF العربية
 
 ## العربية
+
+- إصلاح خطأ Windows `0x80073D02` أثناء تحديث إضافة مستكشف الملفات: يحتفظ المثبّت بتسجيل الإضافة إذا تطابقت هويتها ومجلدها، دون إغلاق Explorer. يتضمن اختبار ترقية مع بقاء إضافة COM قيد الاستخدام.
 
 - إصلاح اتصال الحروف العربية واتجاه الفقرات باستخدام HarfBuzz وUnicode BiDi، مع تضمين مجموعات خطوط Noto داخل PDF وربطها بنص Unicode قابل للنسخ والبحث.
 - يشمل مسارات TXT وMarkdown وHTML وDOCX وXLSX وPPTX وHWPX، والنص العربي البسيط داخل SVG. تبقى تحويلات الصور والصوت والفيديو والأرشيف على محركاتها الحالية.
@@ -16,6 +18,8 @@
 الجودة تعتمد كذلك على قارئ تنسيق المصدر: القوالب المكتبية المعقدة وتوزيع الأعمدة والجداول ذات الدمج الرأسي وحقول المعادلات ليست مضمونة كتطابق طباعي مع Word/PowerPoint. نصوص SVG ذات textPath أو tspan أو توزيع أحرف خاص تحتفظ بالمسار الرسومي السابق وقد لا تكون قابلة للبحث. ملفات PDF الممسوحة تحتاج OCR خارج نطاق هذا الإصلاح. لا يضيف الإصلاح نصاً أصلياً مفقوداً إلى ملفات PDF القديمة. لا يُعلن توافق PDF/A من دون تحقق مستقل.
 
 ## English
+
+Fix Windows Explorer menu upgrade error `0x80073D02` by preserving an unchanged sparse package registered at the same external location. A native upgrade check holds the registered COM extension in use and reproduces the old deployment failure before testing the installer. Explorer is not forcibly closed.
 
 Arabic document PDFs now use HarfBuzz OpenType shaping, Unicode paragraph direction/line breaking and embedded Noto glyph subsets with genuine ToUnicode mappings. Required Arabic samples, vowels, mixed Latin/numbers, long paragraphs and tables are checked for content and rendering. Existing external PDFs are checked through merge, split and compression.
 
