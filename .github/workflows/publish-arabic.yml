@@ -2,14 +2,45 @@ name: Publish verified Arabic preview
 
 on:
   push:
-    tags: ['publish-arabic-v*']
+    tags: ['publish-arabic-v*', 'inspect-arabic-*']
 
 permissions:
   contents: write
   actions: read
 
 jobs:
+  inspect:
+    if: startsWith(github.ref_name, 'inspect-arabic-')
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Read native failure reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          run="${GITHUB_REF_NAME#inspect-arabic-}"
+          [[ "$run" =~ ^[0-9]+$ ]]
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" --pattern 'windows-arabic-test-results' --pattern 'unix-test-results-*' --dir Reports
+          python3 - <<'PYTHON'
+          import pathlib, xml.etree.ElementTree as ET, os
+          lines = []
+          for file in pathlib.Path('Reports').rglob('*.trx'):
+              root = ET.parse(file)
+              lines.append(str(file) + ': ' + str(root.find('.//{*}Counters').attrib))
+              for row in root.findall('.//{*}UnitTestResult'):
+                  if row.get('outcome') not in ('Passed', 'NotExecuted'):
+                      text = row.get('testName', '') + ': ' + ' '.join(row.itertext())
+                      print('::error::' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+                      lines.append(text)
+          pathlib.Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n\n'.join(lines), encoding='utf-8')
+          PYTHON
+
   publish:
+    if: startsWith(github.ref_name, 'publish-arabic-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
