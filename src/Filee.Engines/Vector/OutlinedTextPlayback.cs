@@ -46,6 +46,8 @@ internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTex
         // order, including punctuation merged into a Latin run. Shape its original paragraph once instead.
         if (sources is null || picture.Commands is not { Count: > 0 } commands)
             return false;
+        if (commands.Count == 1 && commands[0] is DrawTextBlobCanvasCommand { TextBlob.Text: null } opaque)
+            return DrawOpaqueText(opaque, canvas);
         var draws = new List<(string Text, float X, float Y, ShimSkiaSharp.SKPaint? Paint, ShimSkiaSharp.SKFont? Font)>();
         foreach (var command in commands)
         {
@@ -87,6 +89,40 @@ internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTex
         var x = source.X ?? draws.Min(d => d.X);
         x -= align switch { SKTextAlign.Right => line.Width, SKTextAlign.Center => line.Width / 2, _ => 0 };
         ArabicTextLayout.Draw(canvas, line, x, draws[0].Y, paint.Color, glyphWriter, paint);
+        _usedSources.Add(source);
+        return true;
+    }
+
+    private bool DrawOpaqueText(DrawTextBlobCanvasCommand command, SKCanvas canvas)
+    {
+        // On Windows Svg.Skia emits a single glyph-only blob per text element. Bind it to the original simple
+        // XML element by its baseline and anchor; never infer Unicode from the already substituted glyph IDs.
+        if (sources is null || command.TextBlob is not { Points: { Length: > 0 } points, Glyphs: { } glyphs } blob
+            || points.Length != glyphs.Length || command.Paint is not { } shimPaint)
+            return false;
+        using var font = blob.Font is { } shimFont ? model.ToSKFont(shimFont) : model.ToSKFont(shimPaint);
+        using var paint = model.ToSKPaint(shimPaint);
+        if (font is null || paint is null)
+            return false;
+        var widths = font.GetGlyphWidths(glyphs);
+        var bases = Enumerable.Range(0, points.Length).Where(i => widths[i] > 0.01f).ToArray();
+        if (bases.Length == 0)
+            return false;
+        var baseline = command.Y + bases.GroupBy(i => MathF.Round(points[i].Y, 2))
+            .OrderByDescending(g => g.Count()).First().Key;
+        var left = command.X + bases.Min(i => points[i].X);
+        var right = command.X + bases.Max(i => points[i].X + widths[i]);
+        var candidates = sources.Where(s => !_usedSources.Contains(s) && Math.Abs((s.Y ?? 0) - baseline) < 0.1f).ToArray();
+        var source = candidates.FirstOrDefault(s => s.Simple && ArabicTextLayout.ContainsArabic(s.Text)
+            && (candidates.Length == 1 || s.X is null || Math.Abs(s.X.Value - (s.Anchor == "middle" ? (left + right) / 2
+                : s.Anchor == "end" ^ s.Rtl ? right : left)) < Math.Max(1, font.Size * 0.1f)));
+        if (source is null)
+            return false;
+        _arabic ??= new ArabicTextLayout();
+        var line = _arabic.Wrap(source.Text, float.MaxValue, font.Size, font.Typeface?.FontWeight >= 600, source.Rtl)[0];
+        var x = source.X ?? left;
+        x -= source.Anchor == "middle" ? line.Width / 2 : source.Anchor == "end" ^ source.Rtl ? line.Width : 0;
+        ArabicTextLayout.Draw(canvas, line, x, baseline, paint.Color, glyphWriter, paint);
         _usedSources.Add(source);
         return true;
     }
