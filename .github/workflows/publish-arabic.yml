@@ -42,6 +42,20 @@ jobs:
           pathlib.Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n\n'.join(lines), encoding='utf-8')
           PYTHON
 
+      - name: Inspect a failed packaging job
+        if: contains(github.ref_name, '-job')
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="${GITHUB_REF_NAME##*-job}"
+          [[ "$job" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > packaging.log
+          python3 - <<'PYTHON'
+          import pathlib
+          text = '\n'.join(pathlib.Path('packaging.log').read_text(encoding='utf-8', errors='replace').splitlines()[-150:])
+          print('::error::Packaging log: ' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PYTHON
+
   probe:
     if: startsWith(github.ref_name, 'inspect-arabic-') && contains(github.ref_name, '-probe')
     runs-on: windows-latest
