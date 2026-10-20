@@ -23,6 +23,7 @@ internal sealed partial class DocxReader
         public int? Left, Right, FirstLine, Hanging, Before, After, Line;
         public string? LineRule;
         public bool? KeepNext, KeepLines, PageBreakBefore, WidowControl, SnapToGrid;
+        public bool? Bidi;
         public int? OutlineLevel;
         public string? NumId;
         public int? Ilvl;
@@ -62,6 +63,7 @@ internal sealed partial class DocxReader
             PageBreakBefore = Toggle(pPr, "pageBreakBefore") ?? PageBreakBefore;
             WidowControl = Toggle(pPr, "widowControl") ?? WidowControl;
             SnapToGrid = Toggle(pPr, "snapToGrid") ?? SnapToGrid;
+            Bidi = Toggle(pPr, "bidi") ?? Bidi;
             if (pPr.Element(W + "outlineLvl") is { } outline && int.TryParse(Val(outline), out var level))
                 OutlineLevel = level;
             if (pPr.Element(W + "numPr") is { } numPr)
@@ -91,6 +93,9 @@ internal sealed partial class DocxReader
         public bool? Bold, Italic, Underline, Strike, Hidden;
         public string? VertAlign, Color, Highlight, Shade, Ascii, EastAsia, AsciiTheme, EastAsiaTheme;
         public int? Size, Spacing;
+        public int? ComplexSize;
+        public bool? ComplexBold, ComplexItalic;
+        public string? ComplexFont;
 
         public RunProps Clone() => (RunProps)MemberwiseClone();
 
@@ -100,6 +105,8 @@ internal sealed partial class DocxReader
                 return;
             Bold = Toggle(rPr, "b") ?? Bold;
             Italic = Toggle(rPr, "i") ?? Italic;
+            ComplexBold = Toggle(rPr, "bCs") ?? ComplexBold;
+            ComplexItalic = Toggle(rPr, "iCs") ?? ComplexItalic;
             Strike = Toggle(rPr, "strike") ?? Toggle(rPr, "dstrike") ?? Strike;
             Hidden = Toggle(rPr, "vanish") ?? Hidden;
             if (rPr.Element(W + "u") is { } u)
@@ -114,10 +121,13 @@ internal sealed partial class DocxReader
                 Shade = ShadingColor(shd);
             if (rPr.Element(W + "sz") is { } sz && int.TryParse(Val(sz), out var halfPoints))
                 Size = halfPoints;
+            if (rPr.Element(W + "szCs") is { } szCs && int.TryParse(Val(szCs), out var complexHalfPoints))
+                ComplexSize = complexHalfPoints;
             if (rPr.Element(W + "spacing") is { } spacing && int.TryParse(Val(spacing), out var twips))
                 Spacing = twips;
             if (rPr.Element(W + "rFonts") is { } fonts)
             {
+                ComplexFont = Attr(fonts, "cs") ?? ComplexFont;
                 // A theme reference wins over an explicit name in Word, so a later explicit name clears it.
                 if ((Attr(fonts, "ascii") ?? Attr(fonts, "hAnsi")) is { } ascii)
                     (Ascii, AsciiTheme) = (ascii, null);
@@ -335,6 +345,7 @@ internal sealed partial class DocxReader
                 "right" or "end" => HAlign.Right,
                 "both" or "lowKashida" or "mediumKashida" or "highKashida" or "thaiDistribute" => HAlign.Justify,
                 "distribute" => HAlign.Distribute,
+                null when p.Bidi == true => HAlign.Right,
                 _ => HAlign.Left,
             },
             Left: HwpxUnits.FromTwips(p.Left ?? 0),
@@ -343,6 +354,7 @@ internal sealed partial class DocxReader
             Before: HwpxUnits.FromTwips(p.Before ?? 0),
             After: HwpxUnits.FromTwips(p.After ?? 0),
             LineSpacing: lineSpacing ?? new HLineSpacing(HLineSpacingKind.Percent, (int)WordLineToHwpPercent),
+            RightToLeft: p.Bidi,
             KeepWithNext: p.KeepNext ?? false,
             KeepLines: p.KeepLines ?? false,
             WidowOrphan: p.WidowControl ?? true,
@@ -364,19 +376,19 @@ internal sealed partial class DocxReader
                 .ToList());
     }
 
-    private HCharFormat CharFormat(RunProps r)
+    private HCharFormat CharFormat(RunProps r, bool complexScript = false)
     {
         var (latin, eastAsian) = Fonts(r);
-        var size = r.Size ?? 20;
+        var size = (complexScript ? r.ComplexSize : null) ?? r.Size ?? 20;
         return new HCharFormat(
-            Bold: r.Bold ?? false,
-            Italic: r.Italic ?? false,
+            Bold: (complexScript ? r.ComplexBold : null) ?? r.Bold ?? false,
+            Italic: (complexScript ? r.ComplexItalic : null) ?? r.Italic ?? false,
             Underline: r.Underline ?? false,
             Strike: r.Strike ?? false,
             Superscript: r.VertAlign == "superscript",
             Subscript: r.VertAlign == "subscript",
             Size: size * 50,
-            Font: latin,
+            Font: (complexScript ? r.ComplexFont : null) ?? latin,
             EastAsianFont: eastAsian,
             Color: r.Color ?? "#000000",
             Shade: r.Highlight ?? r.Shade,

@@ -2,7 +2,7 @@ name: Arabic preview installers
 
 on:
   push:
-    branches: [feature/arabic-rtl]
+    branches: [feature/arabic-pdf]
     paths-ignore:
       - 'docs/**'
       - '.github/workflows/publish-arabic.yml'
@@ -11,7 +11,7 @@ on:
       version:
         description: 'Preview version (three numbers and optional prerelease suffix)'
         type: string
-        default: '1.12.1-arabic.1'
+        default: '1.12.1-arabic.2'
         required: true
       create_draft:
         description: 'Collect verified packages in a draft prerelease'
@@ -34,7 +34,7 @@ jobs:
       - name: Validate preview version
         id: version
         env:
-          PACKAGE_VERSION: ${{ inputs.version || '1.12.1-arabic.1' }}
+          PACKAGE_VERSION: ${{ inputs.version || '1.12.1-arabic.2' }}
         run: |
           if [[ ! "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
             echo 'Invalid package version' >&2
@@ -52,6 +52,8 @@ jobs:
     needs: version
     runs-on: windows-latest
     timeout-minutes: 60
+    env:
+      FILEE_ARABIC_PDF_ARTIFACTS: ${{ github.workspace }}/TestResults/arabic-pdf
     defaults:
       run:
         shell: pwsh
@@ -70,6 +72,8 @@ jobs:
         run: ./build/fetch-engines.ps1 -Only rhwp,pandoc,7zip
       - name: Build
         run: dotnet build Filee.slnx -c Release
+      - name: Verify code formatting
+        run: dotnet format Filee.slnx --no-restore --verify-no-changes
       - name: UI tests
         run: dotnet test tests/Filee.App.Tests --no-build -c Release --blame-crash --blame-hang-timeout 5m --logger trx --results-directory TestResults/app
       - name: Other tests
@@ -78,6 +82,10 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ needs.version.outputs.value }}
         run: ./build/build-installer.ps1 -Version $env:PACKAGE_VERSION -Portable
+      - name: Install, launch, convert Arabic PDF and uninstall packaged files
+        env:
+          PACKAGE_VERSION: ${{ needs.version.outputs.value }}
+        run: ./build/smoke-windows-installer.ps1 -Version $env:PACKAGE_VERSION
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
@@ -109,7 +117,7 @@ jobs:
           pattern: portable-*
           merge-multiple: true
           path: Releases
-      - name: Verify all six packages and their checksums
+      - name: Verify all ten packages and their checksums
         working-directory: Releases
         run: |
           set -euo pipefail
@@ -120,7 +128,16 @@ jobs:
           test -s "Filee-$PACKAGE_VERSION-win-Setup.exe"
           test -s "Filee-$PACKAGE_VERSION-win-Portable.zip"
           sha256sum --check "Filee-$PACKAGE_VERSION-SHA256SUMS.txt"
-          sha256sum *.tar.gz *.exe *.zip > SHA256SUMS.txt
+          for rid in linux-x64 linux-arm64; do
+            test -s "Filee-$PACKAGE_VERSION-$rid.deb"
+            sha256sum --check "Filee-$PACKAGE_VERSION-$rid.deb-SHA256SUMS.txt"
+          done
+          for rid in osx-x64 osx-arm64; do
+            test -s "Filee-$PACKAGE_VERSION-$rid.dmg"
+            sha256sum --check "Filee-$PACKAGE_VERSION-$rid.dmg-SHA256SUMS.txt"
+          done
+          sha256sum *.tar.gz *.exe *.zip *.deb *.dmg > SHA256SUMS.txt
+          test "$(wc -l < SHA256SUMS.txt)" -eq 10
       - uses: actions/upload-artifact@v4
         with:
           name: Filee-arabic-all-platforms

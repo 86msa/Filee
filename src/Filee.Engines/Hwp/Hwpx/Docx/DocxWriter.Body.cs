@@ -255,6 +255,8 @@ internal sealed partial class DocxWriter
             sb.Append("</w:tabs>");
         }
 
+        if (format.RightToLeft is { } rtl)
+            sb.Append(rtl ? "<w:bidi/>" : "<w:bidi w:val=\"0\"/>");
         var spacing = new StringBuilder();
         if (format.Before is { } before)
             spacing.Append($" w:before=\"{Number(Math.Max(0, Twips(before)))}\"");

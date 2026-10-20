@@ -25,6 +25,7 @@
     <PackageReference Include="SharpCompress" />
     <PackageReference Include="ExcelDataReader" />
     <PackageReference Include="PdfPig" />
+    <PackageReference Include="Meziantou.Framework.Unicode" />
     <PackageReference Include="MimeKitLite" />
     <PackageReference Include="ACadSharp" />
     <PackageReference Include="AngleSharp" />
@@ -44,5 +45,8 @@
     <EmbeddedResource Include="Hwp\Hwpx\blank.hwpx" LogicalName="Filee.Engines.Hwpx.blank.hwpx" />
     <!-- Pinned downloads of optional engines, also read by build/fetch-engines.ps1. -->
     <EmbeddedResource Include="Infrastructure\engines.json" LogicalName="Filee.Engines.engines.json" />
+    <!-- The same pinned OFL static faces fetched for the UI; PDF output embeds them. -->
+    <EmbeddedResource Include="..\Filee.App\Assets\Fonts\NotoSansArabic-*.ttf" LogicalName="Filee.Engines.Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\Filee.App\Assets\Fonts\NotoSans-Regular.ttf;..\Filee.App\Assets\Fonts\NotoSans-Medium.ttf;..\Filee.App\Assets\Fonts\NotoSans-Bold.ttf" LogicalName="Filee.Engines.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

@@ -1063,3 +1063,7 @@ Same-format edges exist too, so "MP4 720p" works on MP4 files and "MP3 128k" on 
   `nclx` sRGB, BT.601 full range when there is none) and Exif (orientation reset to 1, thumbnail removed) as a `cdsc`
   item. Checked with libheif (Magick.NET), FFmpeg's HEIF demuxer and Windows' HEIF/HEVC extensions; a smooth 2000 ×
   1500 picture is a quarter the size of a JPG at the same PSNR.
+
+## Arabic PDF composition
+
+Arabic text in the built-in document routes uses the shared HDocument model with `ArabicDocumentPdf`, HarfBuzz shaping, Unicode BiDi/line breaking and embedded Type 3 Unicode font subsets. Non-Arabic documents retain their existing compositor. Simple SVG Arabic text is reshaped from its original logical text. See [ARABIC-PDF.md](ARABIC-PDF.md) for diagnosis, tests and layout limitations. This does not alter PDFsharp merge/split/compress or media/archive engines.

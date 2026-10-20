@@ -42,7 +42,7 @@ jobs:
           echo "SOURCE_RUN_ID=$source_run" >> "$GITHUB_ENV"
           echo "SOURCE_COMMIT=$source_commit" >> "$GITHUB_ENV"
           echo "Verified source commit: $source_commit" >> "$GITHUB_STEP_SUMMARY"
-      - name: Download and verify all six installers
+      - name: Download and verify all ten installers
         shell: bash
         run: |
           set -euo pipefail
@@ -55,39 +55,27 @@ jobs:
           test -s "Filee-$PACKAGE_VERSION-win-Setup.exe"
           test -s "Filee-$PACKAGE_VERSION-win-Portable.zip"
           sha256sum --check "Filee-$PACKAGE_VERSION-SHA256SUMS.txt"
-          test "$(wc -l < SHA256SUMS.txt)" -eq 6
+          for rid in linux-x64 linux-arm64; do
+            test -s "Filee-$PACKAGE_VERSION-$rid.deb"
+            sha256sum --check "Filee-$PACKAGE_VERSION-$rid.deb-SHA256SUMS.txt"
+          done
+          for rid in osx-x64 osx-arm64; do
+            test -s "Filee-$PACKAGE_VERSION-$rid.dmg"
+            sha256sum --check "Filee-$PACKAGE_VERSION-$rid.dmg-SHA256SUMS.txt"
+          done
+          test "$(find . -maxdepth 1 -name 'Filee-*' \( -name '*.exe' -o -name '*.zip' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.dmg' \) | wc -l)" -eq 10
           sha256sum --check SHA256SUMS.txt
       - name: Summarize native test results
         shell: bash
         run: |
           set -euo pipefail
           gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'unix-test-results-*' --pattern 'windows-arabic-test-results' --dir TestReports
-          python3 - <<'PYTHON'
-          import collections, json, os, pathlib, re, zipfile, xml.etree.ElementTree as ET
-          root = pathlib.Path('TestReports')
-          names = ['windows-arabic-test-results'] + ['unix-test-results-' + rid for rid in ('linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
-          report = {'source_run': os.environ['SOURCE_RUN_ID'], 'version': os.environ['PACKAGE_VERSION'], 'source_commit': os.environ['SOURCE_COMMIT'], 'platforms': {}}
-          for name in names:
-              results = {}
-              files = sorted((root / name).rglob('*.trx'))
-              assert files, 'Missing TRX results for ' + name
-              for file in files:
-                  document = ET.parse(file)
-                  for row in document.findall('.//{*}UnitTestResult'):
-                      key = row.get('testName')
-                      if key not in results or row.get('startTime', '') > results[key].get('startTime', ''):
-                          results[key] = row.attrib
-              counts = collections.Counter(row.get('outcome') for row in results.values())
-              assert counts and set(counts) <= {'Passed', 'NotExecuted'}, (name, counts)
-              report['platforms'][name] = {'counts': dict(counts), 'skipped': sorted(key for key, row in results.items() if row.get('outcome') == 'NotExecuted')}
-          pathlib.Path('VALIDATION.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          screenshots = [file for file in root.rglob('*.png') if re.search(r'(^|[-_])ar([-_.]|$)', file.name)]
-          assert screenshots, 'Missing Arabic screenshots'
-          with zipfile.ZipFile('Screenshots-Arabic.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-              for file in screenshots:
-                  archive.write(file, file.relative_to(root))
-          PYTHON
-          gh release upload "$RELEASE_TAG" VALIDATION.json Screenshots-Arabic.zip --repo "$GITHUB_REPOSITORY" --clobber
+          python3 build/verify-arabic-release.py
+          cp VALIDATION.json Screenshots-Arabic.zip PDF-Arabic-Samples.zip Packages/
+          cd Packages
+          sha256sum Filee-*.exe Filee-*.zip Filee-*.tar.gz Filee-*.deb Filee-*.dmg VALIDATION.json Screenshots-Arabic.zip PDF-Arabic-Samples.zip > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+          gh release upload "$RELEASE_TAG" VALIDATION.json Screenshots-Arabic.zip PDF-Arabic-Samples.zip SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
       - name: Publish prerelease
         shell: bash
         run: |

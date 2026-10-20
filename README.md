@@ -1,3 +1,5 @@
+> **Arabic PDF preview fork:** [86msa/Filee](https://github.com/86msa/Filee), based on [KnifeLemon/Filee](https://github.com/KnifeLemon/Filee). Download this fork from [its releases](https://github.com/86msa/Filee/releases). Arabic PDF implementation and validation: [ARABIC-PDF.md](docs/ARABIC-PDF.md). Windows EXE/ZIP, Linux x64/ARM64 tar.gz/DEB and macOS Intel/Apple Silicon tar.gz/DMG are built and installed on native CI runners. macOS previews are ad-hoc signed and **not notarized**; downloaded copies may be blocked. Preview updates are manual through this fork’s releases; the updater never targets upstream releases.
+
 <p align="center">
   <a href="https://filee.sh"><img src="docs/media/banner-en.jpg" alt="Filee: Drag. Drop. Converted." width="100%"></a>
 </p>
@@ -9,16 +11,16 @@
 
 <p align="center">
   <a href="https://filee.sh"><b>Website</b></a> ·
-  <a href="https://github.com/KnifeLemon/Filee/releases/latest"><b>Download</b></a> ·
+  <a href="https://github.com/86msa/Filee/releases"><b>Download</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#command-line">Command line</a> ·
   <a href="#development">Development</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/KnifeLemon/Filee/actions/workflows/ci.yml"><img src="https://github.com/KnifeLemon/Filee/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/KnifeLemon/Filee/releases/latest"><img src="https://img.shields.io/github/v/release/KnifeLemon/Filee?color=7F77DD&label=release" alt="Latest release"></a>
-  <a href="https://github.com/KnifeLemon/Filee/releases"><img src="https://img.shields.io/github/downloads/KnifeLemon/Filee/total?color=1D9E75" alt="Downloads"></a>
+  <a href="https://github.com/86msa/Filee/actions/workflows/ci.yml"><img src="https://github.com/86msa/Filee/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/86msa/Filee/releases"><img src="https://img.shields.io/github/v/release/86msa/Filee?include_prereleases&color=7F77DD&label=release" alt="Latest release"></a>
+  <a href="https://github.com/86msa/Filee/releases"><img src="https://img.shields.io/github/downloads/86msa/Filee/total?color=1D9E75" alt="Downloads"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-3C3489" alt="Windows 10 | 11">
   <img src="https://img.shields.io/badge/macOS%20%7C%20Linux-preview-534AB7" alt="macOS | Linux preview">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6A62C9" alt="MIT license"></a>
@@ -48,7 +50,7 @@
 
 ## Install
 
-Download from [Releases](https://github.com/KnifeLemon/Filee/releases/latest).
+Download from [Releases](https://github.com/86msa/Filee/releases).
 
 - **Windows 10/11**: run `Filee-<version>-win-Setup.exe`, or unzip the `win-Portable.zip` and run `Filee.exe`.
   Setup can add the Explorer menu, start at sign-in, the `filee` command and optional engines.
@@ -125,7 +127,7 @@ Every command and option: [filee.sh/cli](https://filee.sh/cli/) or `filee help`.
 Build with the .NET 10 SDK on Windows, macOS or Linux:
 
 ```bash
-git clone https://github.com/KnifeLemon/Filee.git
+git clone https://github.com/86msa/Filee.git
 cd Filee
 pwsh build/fetch-engines.ps1 -Only rhwp,pandoc   # optional engines
 dotnet run --project src/Filee.App

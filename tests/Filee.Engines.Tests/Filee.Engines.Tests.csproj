@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Fixtures/Arabic/**" CopyToOutputDirectory="PreserveNewest" />
     <!-- Small OFL test fonts for FontTests (see Fonts/OFL.txt and Fonts/make-test-fonts.py). -->
     <None Update="Fonts\*.ttf;Fonts\*.otf;Fonts\*.woff2" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

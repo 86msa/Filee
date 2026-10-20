@@ -35,3 +35,9 @@ Dependency references:
 https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install
 https://docs.avaloniaui.net/docs/deployment/linux
 https://calibre-ebook.com/download_linux
+
+DEB packages (Ubuntu 22.04/24.04 and compatible Debian dependencies):
+  sudo apt install ./Filee-VERSION-linux-x64.deb
+Use linux-arm64.deb for ARM64. Remove with: sudo apt remove filee
+apt owns this installation in /opt/filee; do not run the tar install.sh on it.
+User settings and converted documents are kept.

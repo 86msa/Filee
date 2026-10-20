@@ -18,6 +18,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Filee.Engines.Hwp.Hwpx;
+using Meziantou.Framework;
 using PDFtoImage;
 using SkiaSharp;
 using UglyToad.PdfPig;
@@ -93,7 +94,8 @@ internal sealed partial class PdfDocumentReader
     // ───────────────────────── Model of a page ─────────────────────────
 
     /// <summary>A word with its box (points, y upwards from the bottom of the visible page) and formatting.</summary>
-    private sealed record TextWord(string Text, double Left, double Right, double Top, double Bottom, double Baseline, double Size, HCharFormat Format, string? Link);
+    private sealed record TextWord(string Text, double Left, double Right, double Top, double Bottom, double Baseline,
+        double Size, HCharFormat Format, string? Link, int? LogicalOrder = null, bool NoSpaceBefore = false);
 
     /// <summary>A text line (or the part of it in one column).</summary>
     private sealed class TextLine(List<TextWord> words, int row = 0)
@@ -112,7 +114,31 @@ internal sealed partial class PdfDocumentReader
         public double Bottom => Words.Min(w => w.Bottom);
         public double Baseline => Words[0].Baseline;
         public double Size => Words.Max(w => w.Size);
-        public string Text => string.Join(' ', Words.Select(w => w.Text));
+        public IReadOnlyList<TextWord> ReadingWords => LogicalWords(Words);
+        public string Text => string.Concat(ReadingWords.Select((w, i) => (i > 0 && !w.NoSpaceBefore ? " " : "") + w.Text));
+    }
+
+    private static IReadOnlyList<TextWord> LogicalWords(List<TextWord> words)
+    {
+        if (!words.Any(w => ArabicTextLayout.ContainsArabic(w.Text)))
+            return words;
+        if (words.All(w => w.LogicalOrder is not null))
+            return words.OrderBy(w => w.LogicalOrder).ToArray();
+        // Positioned PDFs commonly store Arabic in visual order. Reorder word units, never reverse a word's
+        // Unicode code points: a glyph can represent lam-alef or a complete base + vowel cluster.
+        var joined = string.Join(' ', words.Select(w => w.Text));
+        var levels = new byte[joined.Length];
+        UnicodeBidi.ResolveLevels(joined, UnicodeBidiDirection.RightToLeft, levels);
+        var wordLevels = new byte[words.Count];
+        var at = 0;
+        for (var i = 0; i < words.Count; i++)
+        {
+            wordLevels[i] = levels[at];
+            at += words[i].Text.Length + 1;
+        }
+        var order = new int[words.Count];
+        UnicodeBidi.GetVisualOrder(wordLevels, order);
+        return order.Select(i => words[i]).ToArray();
     }
 
     /// <summary>A paragraph, a picture or a ruled table on a page, the unit of reading order.</summary>
@@ -161,7 +187,7 @@ internal sealed partial class PdfDocumentReader
         PdfDocument pdf;
         try
         {
-            pdf = PdfDocument.Open(_path, new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true });
+            pdf = PdfDocument.Open(_path, new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true, UseActualText = true });
         }
         catch (PdfDocumentEncryptedException)
         {
@@ -202,7 +228,7 @@ internal sealed partial class PdfDocumentReader
         var reader = new PdfDocumentReader(path, "", textOnly: true);
         try
         {
-            using var pdf = PdfDocument.Open(path, new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true });
+            using var pdf = PdfDocument.Open(path, new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true, UseActualText = true });
             var texts = new List<string>(pages.Count);
             foreach (var index in pages)
             {
@@ -236,8 +262,87 @@ internal sealed partial class PdfDocumentReader
             .Select(h => (Bounds: Shift(h.Bounds, crop), Uri: h.Uri!))
             .ToList();
 
+        var arabicLetters = page.Letters.Where(l => ArabicTextLayout.ContainsArabic(l.Value)).ToArray();
+        var advances = arabicLetters.Zip(arabicLetters.Skip(1))
+            .Where(p => Math.Abs(p.First.StartBaseLine.Y - p.Second.StartBaseLine.Y) < 1)
+            .Select(p => p.Second.StartBaseLine.X - p.First.StartBaseLine.X).Where(dx => Math.Abs(dx) > 0.1).ToArray();
+        var logicalArabic = advances.Length > 0 && advances.Count(dx => dx < 0) > advances.Count(dx => dx > 0);
         var words = new List<TextWord>();
-        foreach (var word in page.GetWords(NearestNeighbourWordExtractor.Instance))
+        var letterOrder = new Dictionary<Letter, int>(ReferenceEqualityComparer.Instance);
+        for (var i = 0; i < page.Letters.Count; i++)
+            letterOrder[page.Letters[i]] = i;
+        var codes = new Dictionary<string, Queue<int>>(StringComparer.Ordinal);
+        var activeFont = "";
+        foreach (var operation in page.Operations)
+        {
+            if (operation is UglyToad.PdfPig.Graphics.Operations.TextState.SetFontAndSize setFont)
+                activeFont = setFont.Font.Data;
+            if (!activeFont.StartsWith("FileeArabicSubset_", StringComparison.Ordinal))
+                continue;
+            if (!codes.TryGetValue(activeFont, out var queue))
+                codes.Add(activeFont, queue = new Queue<int>());
+            if (operation is UglyToad.PdfPig.Graphics.Operations.TextShowing.ShowText show)
+                foreach (var code in show.Bytes.Span)
+                    queue.Enqueue(code);
+            else if (operation is UglyToad.PdfPig.Graphics.Operations.TextShowing.ShowTextsWithPositioning positioned)
+                foreach (var token in positioned.Array)
+                {
+                    IEnumerable<byte> bytes = token switch
+                    {
+                        HexToken hex => hex.Bytes.ToArray(),
+                        StringToken literal => literal.GetBytes(),
+                        _ => [],
+                    };
+                    foreach (var code in bytes)
+                        queue.Enqueue(code);
+                }
+        }
+        var logicalCodes = new Dictionary<Letter, int>(ReferenceEqualityComparer.Instance);
+        foreach (var letter in page.Letters.Where(IsArabicSubset))
+        {
+            var name = letter.FontName ?? "";
+            if (codes.TryGetValue(name, out var queue) && queue.TryDequeue(out var code)
+                && int.TryParse(name[(name.LastIndexOf('_') + 1)..], out var bank))
+                logicalCodes[letter] = bank * 255 + code - 1;
+        }
+        var subsetGroups = page.Letters.Where(IsArabicSubset)
+            .GroupBy(l => (FontName: l.FontName?[..l.FontName.LastIndexOf('_')], Y: Math.Round(l.StartBaseLine.Y, 4))).ToArray();
+        foreach (var group in subsetGroups)
+        {
+            var first = group.Min(l => letterOrder[l]);
+            var ordered = group.OrderBy(l => logicalCodes.GetValueOrDefault(l, letterOrder[l])).ToArray();
+            for (var i = 0; i < ordered.Length; i++)
+                letterOrder[ordered[i]] = first + i;
+        }
+        var logicalLetters = page.Letters.OrderBy(l => letterOrder[l]).ToArray();
+        var extractedWords = NearestNeighbourWordExtractor.Instance.GetWords(page.Letters.Where(l => !IsArabicSubset(l)).ToArray()).ToList();
+        var subsetSequences = page.Letters.Where(IsArabicSubset).Select(l => letterOrder[l]).Order().ToArray();
+        var contentLogical = logicalArabic || subsetSequences.Length > 0;
+        if (subsetSequences.Length > 0)
+            extractedWords = extractedWords.SelectMany(word => word.Letters
+                .GroupBy(l => Array.BinarySearch(subsetSequences, letterOrder[l]) is var position && position < 0 ? ~position : position)
+                .Select(g => new Word(g.OrderBy(l => letterOrder[l]).ToArray()))).ToList();
+        // The nearest-neighbour extractor can attach a zero-advance vowel to the wrong word. These embedded
+        // subsets have exact Unicode spaces and baseline anchors: keep each base and its marks together first.
+        foreach (var group in subsetGroups)
+        {
+            var ordered = group.OrderBy(l => letterOrder[l]);
+            var chunk = new List<Letter>();
+            foreach (var letter in ordered)
+            {
+                if (string.IsNullOrWhiteSpace(letter.Value))
+                {
+                    if (chunk.Count > 0)
+                        extractedWords.Add(new Word(chunk));
+                    chunk = [];
+                }
+                else
+                    chunk.Add(letter);
+            }
+            if (chunk.Count > 0)
+                extractedWords.Add(new Word(chunk));
+        }
+        foreach (var word in extractedWords)
         {
             if (word.TextOrientation != TextOrientation.Horizontal || string.IsNullOrWhiteSpace(word.Text))
                 continue;
@@ -247,12 +352,41 @@ internal sealed partial class PdfDocumentReader
             // Invisible text is the OCR layer of a scan: part of the text, not of the page's look.
             if (!_textOnly && letters.All(l => l.RenderingMode == TextRenderingMode.Neither))
                 continue;
-            var box = Shift(word.BoundingBox, crop);
             var size = Median(letters.Select(l => l.PointSize > 0 ? l.PointSize : l.FontSize));
+            var box = Shift(word.BoundingBox, crop);
+            if (letters.Any(IsArabicSubset))
+            {
+                // The font's shared vertical bounds include all Quranic marks. Horizontal word layout uses
+                // actual text advances, rather than the glyph cache's deliberately generous ink bounds.
+                var bases = letters.Where(l => !IsCombining(l.Value)).ToArray();
+                if (bases.Length == 0)
+                    bases = letters.ToArray();
+                box = new PdfRectangle(bases.Min(l => Math.Min(l.StartBaseLine.X, l.EndBaseLine.X)) - crop.Left,
+                    box.Bottom, bases.Max(l => Math.Max(l.StartBaseLine.X, l.EndBaseLine.X)) - crop.Left, box.Top);
+            }
             var center = new PdfPoint((box.Left + box.Right) / 2, (box.Top + box.Bottom) / 2);
             var link = links.FirstOrDefault(l => Inside(l.Bounds, center)).Uri;
-            words.Add(new TextWord(CleanText(word.Text), box.Left, box.Right, box.Top, box.Bottom,
-                letters[0].StartBaseLine.Y - crop.Bottom, Math.Max(1, size), Format(letters[0], size), link));
+            var text = word.Text;
+            if (ArabicTextLayout.ContainsArabic(text))
+            {
+                if (letters.Any(IsArabicSubset))
+                    text = string.Concat(letters.OrderBy(l => letterOrder[l]).Select(l => l.Value));
+                else
+                    text = string.Concat(contentLogical ? letters.OrderBy(l => letterOrder[l]).Select(l => l.Value)
+                        : letters.OrderByDescending(l => l.StartBaseLine.X).Select(l => l.Value));
+            }
+            var firstSequence = letters.Min(l => letterOrder[l]);
+            var previous = subsetSequences.Length > 0 && firstSequence > 0 ? logicalLetters[firstSequence - 1] : null;
+            var noSpaceBefore = previous is not null && !string.IsNullOrWhiteSpace(previous.Value)
+                && (IsArabicSubset(previous) || letters.Any(IsArabicSubset))
+                && Math.Abs(previous.StartBaseLine.Y - letters[0].StartBaseLine.Y) < 1
+                && (IsArabicSubset(previous) && letters.Any(IsArabicSubset)
+                    && (previous.Value is "(" or "[" or "{" || text.StartsWith(')') || text.StartsWith(']') || text.StartsWith('}'))
+                    || Math.Max(box.Left + crop.Left - Math.Max(previous.StartBaseLine.X, previous.EndBaseLine.X),
+                        Math.Min(previous.StartBaseLine.X, previous.EndBaseLine.X) - box.Right - crop.Left) < Math.Max(0.5, size * 0.15));
+            words.Add(new TextWord(CleanText(text), box.Left, box.Right, box.Top, box.Bottom,
+                letters[0].StartBaseLine.Y - crop.Bottom, Math.Max(1, size), Format(letters[0], size), link,
+                contentLogical ? firstSequence : null, noSpaceBefore));
         }
 
         if (words.Count == 0 || (rotated && !_textOnly))
@@ -272,6 +406,10 @@ internal sealed partial class PdfDocumentReader
             content.Items.AddRange(Pictures(page, content, crop));
         return content;
     }
+
+    private static bool IsArabicSubset(Letter letter) => letter.FontName?.Contains("FileeArabicSubset", StringComparison.Ordinal) == true;
+    private static bool IsCombining(string value) => value.EnumerateRunes().All(r => Rune.GetUnicodeCategory(r) is
+        System.Globalization.UnicodeCategory.NonSpacingMark or System.Globalization.UnicodeCategory.SpacingCombiningMark);
 
     /// <summary>Words → lines → paragraphs, with tabbed rows joined.</summary>
     private static List<Item> TextItems(List<TextWord> words)
@@ -751,9 +889,10 @@ internal sealed partial class PdfDocumentReader
         for (var l = 0; l < item.Lines.Count; l++)
         {
             var line = item.Lines[l];
-            for (var w = 0; w < line.Words.Count; w++)
+            var readingWords = line.ReadingWords;
+            for (var w = 0; w < readingWords.Count; w++)
             {
-                var word = line.Words[w];
+                var word = readingWords[w];
                 var text = word.Text;
                 if (pieces.Count > 0)
                 {
@@ -764,7 +903,8 @@ internal sealed partial class PdfDocumentReader
                     }
                     else if (w > 0)
                     {
-                        pieces[^1] = (previousText + " ", previousFormat, previousLink);
+                        if (!word.NoSpaceBefore)
+                            pieces[^1] = (previousText + " ", previousFormat, previousLink);
                     }
                     else if (previousText.EndsWith('-') && previousText.Length > 1 && char.IsLetter(previousText[^2]) && text.Length > 0 && char.IsLower(text[0]))
                     {

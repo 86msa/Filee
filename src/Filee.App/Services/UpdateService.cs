@@ -68,7 +68,7 @@ public sealed partial class UpdateService : ObservableObject
     /// <summary>GitHub repository from Directory.Build.props (FileeRepositoryUrl).</summary>
     public static string RepositoryUrl =>
         typeof(UpdateService).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(a => a.Key == "RepositoryUrl")?.Value ?? "https://github.com/KnifeLemon/Filee";
+            .FirstOrDefault(a => a.Key == "RepositoryUrl")?.Value ?? "https://github.com/86msa/Filee";
 
     public static string CurrentVersion =>
         typeof(UpdateService).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
@@ -78,10 +78,10 @@ public sealed partial class UpdateService : ObservableObject
     public static string NewIssueUrl => RepositoryUrl.TrimEnd('/') + "/issues/new/choose";
 
     /// <summary>Release page with every file, including the portable zip.</summary>
-    public static string LatestReleaseUrl => RepositoryUrl.TrimEnd('/') + "/releases/latest";
+    public static string LatestReleaseUrl => RepositoryUrl.TrimEnd('/') + "/releases";
 
     /// <summary>The website: one big download button, friendlier than the GitHub release page.</summary>
-    public const string WebsiteUrl = "https://filee.sh/";
+    public static string WebsiteUrl => LatestReleaseUrl;
 
     /// <summary>
     /// True when this copy was installed by Setup (Inno Setup puts its uninstaller next to Filee.exe). Only then can
@@ -435,7 +435,9 @@ public sealed partial class UpdateService : ObservableObject
                 continue;
             if (name.EndsWith("-win-Setup.exe", StringComparison.OrdinalIgnoreCase))
                 installer = new ReleaseFile(name, url, size);
-            else if (name.EndsWith("-SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase))
+            else if (name.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase)
+                || checksums?.Name != "SHA256SUMS.txt" && name.EndsWith("-SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase)
+                    && !name.Contains("linux-", StringComparison.OrdinalIgnoreCase) && !name.Contains("osx-", StringComparison.OrdinalIgnoreCase))
                 checksums = new ReleaseFile(name, url, size);
         }
         return (installer, checksums);

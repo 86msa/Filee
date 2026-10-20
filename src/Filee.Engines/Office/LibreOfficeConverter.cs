@@ -20,6 +20,7 @@
 using Filee.Core.Conversion;
 using Filee.Core.Formats;
 using Filee.Engines.Infrastructure;
+using Filee.Engines.Pdf;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfSharp.Pdf;
@@ -103,6 +104,8 @@ public sealed class LibreOfficeConverter : IConverter
 
     public async Task<IReadOnlyList<string>> ConvertAsync(ConversionStep step, IProgress<double>? progress, CancellationToken cancellationToken)
     {
+        if (await ArabicDocumentPdf.TryConvertAsync(step, progress, cancellationToken) is { } arabic)
+            return arabic;
         var soffice = _soffice ?? throw new InvalidOperationException("LibreOffice was not found.");
         var slot = await TakeProfileAsync(cancellationToken);
         try

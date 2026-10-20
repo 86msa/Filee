@@ -116,7 +116,9 @@ internal sealed partial class HtmlReader
         var blocks = new List<HBlock>();
         var sink = new Sink(blocks);
         if (document.Body is { } body)
-            OnLargeStack(() => reader.Children(body, sink, new Context(default, null, 0, 0, null, 0, false, null)));
+            OnLargeStack(() => reader.Children(body, sink, new Context(default, null, 0, 0, null, 0, false, null,
+                RightToLeft: Direction(body.GetAttribute("dir") ?? reader.StyleOf(body).Get("direction")
+                    ?? document.DocumentElement?.GetAttribute("dir")))));
         reader.Flush(sink);
         if (sink.PendingBookmarks.Count > 0 && blocks.OfType<HParagraph>().LastOrDefault() is { } last)
             last.Inlines.AddRange(sink.PendingBookmarks);
@@ -266,7 +268,10 @@ internal sealed partial class HtmlReader
     /// <param name="FirstLine">First line indent (CSS text-indent).</param>
     /// <param name="Depth">Element nesting depth, limited so that absurdly deep HTML cannot exhaust the stack.</param>
     private readonly record struct Context(
-        HCharFormat Format, HAlign? Align, int Indent, int ListLevel, ListItem? Item, int Heading, bool Pre, int? FirstLine, int Depth = 0);
+        HCharFormat Format, HAlign? Align, int Indent, int ListLevel, ListItem? Item, int Heading, bool Pre, int? FirstLine,
+        int Depth = 0, bool? RightToLeft = null);
+
+    private static bool? Direction(string? value) => value?.ToLowerInvariant() switch { "rtl" => true, "ltr" => false, _ => null };
 
     /// <summary>A list item: its paragraphs share the list, only the first one is numbered.</summary>
     private sealed class ListItem(HNumbering numbering, int level)
@@ -337,6 +342,8 @@ internal sealed partial class HtmlReader
         }
 
         var c = context with { Format = CharFormat(name, element, style, context.Format), Depth = context.Depth + 1 };
+        if ((element.GetAttribute("dir") ?? style.Get("direction")) is { } direction)
+            c = c with { RightToLeft = Direction(direction) };
         if (Align(element.GetAttribute("align") ?? style.Get("text-align")) is { } align)
             c = c with { Align = align };
         if (style.Get("white-space") is { } whiteSpace)
@@ -499,6 +506,7 @@ internal sealed partial class HtmlReader
         {
             Format = new HParaFormat(
                 Align: context.Align,
+                RightToLeft: context.RightToLeft,
                 Left: context.Indent > 0 ? context.Indent : null,
                 FirstLine: context.FirstLine is { } first && first != 0 ? first : null),
             HeadingLevel = context.Heading,
@@ -938,7 +946,8 @@ internal sealed partial class HtmlReader
         var format = CharFormat(cell.LocalName, cell, style, context.Format);
         if (header)
             format = format with { Bold = format.Bold ?? true };
-        var cellContext = new Context(format, Align(cell.GetAttribute("align") ?? style.Get("text-align")) ?? (cell.LocalName == "th" ? HAlign.Center : null), 0, 0, null, 0, false, null, context.Depth + 1);
+        var cellContext = new Context(format, Align(cell.GetAttribute("align") ?? style.Get("text-align")) ?? (cell.LocalName == "th" ? HAlign.Center : null), 0, 0, null, 0, false, null, context.Depth + 1,
+            Direction(cell.GetAttribute("dir") ?? style.Get("direction")) ?? context.RightToLeft);
         Bookmark(cell, cellSink);
         Children(cell, cellSink, cellContext);
         Flush(cellSink);

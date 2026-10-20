@@ -131,6 +131,8 @@ finally {
 
 Write-Host "compile installer $Version"
 $options = @('/Q', "/DAppVersion=$Version", "/DAppNumericVersion=$(($Version -split '-')[0])", "/DPublishDir=$PublishDir", "/O$OutputDir")
+$repositoryUrl = ([xml](Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props') -Raw)).Project.PropertyGroup.FileeRepositoryUrl
+$options += "/DRepositoryUrl=$repositoryUrl"
 if ($CheckOnly) { $options += '--no-compression' }
 Invoke-Checked 'ISCC' { & $iscc @options (Join-Path $root 'installer\Filee.iss') }
 $setupExe = Join-Path $OutputDir "Filee-$Version-win-Setup.exe"

@@ -565,7 +565,7 @@ internal sealed partial class DocxReader
         var props = RunProperties(r.Element(W + "rPr"), styleRun);
         if (props.Hidden == true)
             return;
-        var format = CharFormat(props);
+        var format = CharFormat(props, r.Descendants(W + "t").Any(t => Filee.Engines.Pdf.ArabicTextLayout.ContainsArabic(t.Value)));
 
         foreach (var child in r.Elements())
         {

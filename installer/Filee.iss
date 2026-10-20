@@ -28,7 +28,9 @@
 
 #define AppName "Filee"
 #define AppExe "Filee.exe"
-#define RepositoryUrl "https://github.com/KnifeLemon/Filee"
+#ifndef RepositoryUrl
+  #define RepositoryUrl "https://github.com/86msa/Filee"
+#endif
 ; Never change: Windows finds the installed Filee by this id (uninstall key "{<id>}_is1").
 #define AppGuid "C8686E06-8327-40A2-B0F7-3DEDD61D9248"
 
@@ -558,7 +560,8 @@ begin
         UpdateExplorerMenu;
         if WizardIsTaskSelected('cli') then
           AddCliToPath;
-        StartFilee;
+        if ExpandConstant('{param:NoStart|0}') <> '1' then
+          StartFilee;
       end;
   end;
 end;

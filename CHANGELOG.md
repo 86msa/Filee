@@ -14,6 +14,14 @@ without lines shows the English ones):
 - `recommended`: bug fixes. The card shows once per version.
 - `optional`: new features only. No card, the sidebar button only.
 
+## 1.12.1-arabic.2 (preview)
+
+- Shape Arabic PDF text with HarfBuzz and Unicode BiDi, embed searchable Unicode font subsets, and retain Arabic UI/RTL.
+- Add native PDF copy/search and independent visual regression tests, including existing external PDF preservation.
+- Add installed DEB and mounted/copied DMG checks alongside Windows EXE/ZIP and portable packages.
+- Scope repository/update links to 86msa/Filee; publish only after native content and installation gates.
+
+
 ## 1.12.0
 
 <!-- update

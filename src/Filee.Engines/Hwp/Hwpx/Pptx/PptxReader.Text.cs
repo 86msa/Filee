@@ -72,7 +72,8 @@ internal sealed partial class PptxReader
                     FirstLine: long.TryParse(Attr("indent"), out var indent) ? Hwp(indent) : 0,
                     Before: Spacing(paragraphChain, "spcBef"),
                     After: Spacing(paragraphChain, "spcAft"),
-                    LineSpacing: LineSpacing(paragraphChain)),
+                    LineSpacing: LineSpacing(paragraphChain),
+                    RightToLeft: Attr("rtl") is { } rtl ? rtl is "1" or "true" : null),
             };
 
             var runs = p.Elements().Where(e => e.Name.LocalName is "r" or "br" or "fld").ToList();

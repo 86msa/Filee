@@ -131,3 +131,7 @@ Debugging: `Get-AppxPackage Filee.ExplorerMenu` shows the registration (`Install
 `Add-AppxPackage -Path FileeExplorerMenu.msix -ExternalLocation <folder with Filee.exe> -AllowUnsigned`. Explorer picks
 the entry up for new menus; if not, restart Explorer. To remove it by hand:
 `Get-AppxPackage Filee.ExplorerMenu | Remove-AppxPackage`.
+
+## Arabic PDF composition
+
+Arabic text in the built-in document routes uses the shared HDocument model with `ArabicDocumentPdf`, HarfBuzz shaping, Unicode BiDi/line breaking and embedded Type 3 Unicode font subsets. Non-Arabic documents retain their existing compositor. Simple SVG Arabic text is reshaped from its original logical text. See [ARABIC-PDF.md](ARABIC-PDF.md) for diagnosis, tests and layout limitations. This does not alter PDFsharp merge/split/compress or media/archive engines.

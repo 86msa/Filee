@@ -4,9 +4,9 @@ Run ./install.sh to copy Filee.app to ~/Applications and add ~/.local/bin/filee.
 You can also move Filee.app into Applications manually. Keep its location stable
 so Accessibility and Finder Automation permissions continue to identify it.
 
-Test packages are ad-hoc signed and are not notarized. For a downloaded test
-build, use System Settings > Privacy & Security > Open Anyway when macOS blocks
-the first launch. Only open a build whose source and checksum you trust.
+Test packages are ad-hoc signed, not Developer ID signed or notarized. macOS may
+block a downloaded test build. This package does not disable Gatekeeper or remove
+quarantine. Public notarization needs Apple signing credentials.
 
 Allow Filee in System Settings > Privacy & Security > Accessibility for global
 gestures. Allow Finder under Automation when using a selection shortcut.

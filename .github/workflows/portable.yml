@@ -112,11 +112,17 @@ jobs:
             rid: osx-x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    env:
+      FILEE_ARABIC_PDF_ARTIFACTS: ${{ github.workspace }}/TestResults/arabic-pdf/${{ matrix.rid }}
     defaults:
       run:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Download Linux native builds
         if: runner.os == 'Linux'
@@ -186,6 +192,16 @@ jobs:
         shell: bash
         run: python3 build/smoke-launch-app.py
 
+      - name: Create native installer from the tested archive
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: python3 build/build-native-installer.py --runtime '${{ matrix.rid }}' --version $env:PACKAGE_VERSION
+
+      - name: Install and test the native installer
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: python3 build/smoke-native-installer.py --runtime '${{ matrix.rid }}' --version $env:PACKAGE_VERSION
+
       - name: Collect Filee logs
         if: always()
         shell: bash
@@ -202,6 +218,10 @@ jobs:
           path: |
             Releases/*-${{ matrix.rid }}.tar.gz
             Releases/*-${{ matrix.rid }}-SHA256SUMS.txt
+            Releases/*-${{ matrix.rid }}.deb
+            Releases/*-${{ matrix.rid }}.deb-SHA256SUMS.txt
+            Releases/*-${{ matrix.rid }}.dmg
+            Releases/*-${{ matrix.rid }}.dmg-SHA256SUMS.txt
           if-no-files-found: error
 
       - name: Upload test diagnostics
@@ -211,6 +231,8 @@ jobs:
           name: unix-test-results-${{ matrix.rid }}
           path: |
             TestResults/${{ matrix.rid }}/
+            TestResults/arabic-pdf/${{ matrix.rid }}/
+            TestResults/native-installers/${{ matrix.rid }}/
             tests/Filee.App.Tests/bin/Release/net10.0/screenshots/
             ${{ runner.temp }}/filee-startup.log
             ${{ runner.temp }}/filee-screens/
@@ -262,6 +284,11 @@ jobs:
       - name: Launch native desktop app
         shell: bash
         run: python3 build/smoke-launch-app.py
+
+      - name: Install and test the DEB on Ubuntu 22.04
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: python3 build/smoke-native-installer.py --runtime '${{ matrix.rid }}' --version $env:PACKAGE_VERSION
 
       - name: Collect Filee logs
         if: always()

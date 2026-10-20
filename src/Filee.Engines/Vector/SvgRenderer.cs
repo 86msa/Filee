@@ -3,6 +3,7 @@
 
 using System.IO.Compression;
 using Filee.Core.Presets;
+using Filee.Engines.Pdf;
 using ImageMagick;
 using SkiaSharp;
 using Svg;
@@ -33,7 +34,7 @@ internal static class SvgRenderer
     }
 
     /// <summary>A loaded drawing. Dispose it after drawing.</summary>
-    public sealed class Drawing(SKSvg svg, SKPicture picture, SKRect bounds) : IDisposable
+    public sealed class Drawing(SKSvg svg, SKPicture picture, SKRect bounds, IReadOnlyList<SvgTextSource>? textSources = null) : IDisposable
     {
         /// <summary>The loaded document (its model is replayed for PDF output).</summary>
         public SKSvg Svg { get; } = svg;
@@ -43,6 +44,7 @@ internal static class SvgRenderer
 
         /// <summary>The SVG viewport (width/height or viewBox) in CSS pixels.</summary>
         public SKRect Bounds { get; } = bounds;
+        public IReadOnlyList<SvgTextSource> TextSources { get; } = textSources ?? [];
 
         public void Dispose() => Svg.Dispose();
     }
@@ -85,7 +87,7 @@ internal static class SvgRenderer
             svg.Dispose();
             throw new InvalidDataException("The SVG file has no drawable content or no size.");
         }
-        return new Drawing(svg, picture, bounds);
+        return new Drawing(svg, picture, bounds, SvgTextSource.Read(bytes));
     }
 
     private static SKPicture? Parse(SKSvg svg, byte[] bytes, Uri baseUri)
@@ -127,6 +129,7 @@ internal static class SvgRenderer
         metadata.EncodingQuality = 95;
         metadata.PdfA = pdfA;
 
+        using var glyphs = drawing.TextSources.Any(s => ArabicTextLayout.ContainsArabic(s.Text)) ? new ArabicPdfGlyphWriter() : null;
         using (var stream = File.Create(output))
         using (var document = SKDocument.CreatePdf(stream, metadata))
         {
@@ -135,7 +138,7 @@ internal static class SvgRenderer
             canvas.Translate(-drawing.Bounds.Left, -drawing.Bounds.Top);
             if (drawing.Svg.Model is { } model)
             {
-                using var playback = new OutlinedTextPlayback(drawing.Svg.SkiaModel);
+                using var playback = new OutlinedTextPlayback(drawing.Svg.SkiaModel, drawing.TextSources, glyphs);
                 playback.Draw(model, canvas);
             }
             else
@@ -145,6 +148,7 @@ internal static class SvgRenderer
             document.EndPage();
             document.Close();
         }
+        glyphs?.Finish(output);
         if (new FileInfo(output).Length == 0)
             throw new InvalidOperationException("Skia could not write the PDF.");
     }

@@ -4,6 +4,7 @@
 // Text is shaped with HarfBuzz the way Svg.Skia does it (adapted from SkiaModel.TextShaping.cs, Svg.Skia, MIT).
 
 using System.Runtime.InteropServices;
+using Filee.Engines.Pdf;
 using HarfBuzzSharp;
 using ShimSkiaSharp;
 using Svg.Skia;
@@ -18,20 +19,56 @@ using SKTypeface = SkiaSharp.SKTypeface;
 namespace Filee.Engines.Vector;
 
 /// <summary>Plays back an Svg.Skia picture model, drawing text commands as paths.</summary>
-internal sealed class OutlinedTextPlayback(SkiaModel model) : IDisposable
+internal sealed class OutlinedTextPlayback(SkiaModel model, IReadOnlyList<SvgTextSource>? sources = null,
+    ArabicPdfGlyphWriter? glyphWriter = null) : IDisposable
 {
     /// <summary>HarfBuzz works in integer units: positions are computed at this scale and divided back.</summary>
     private const int HarfBuzzScale = 512;
 
     private readonly Dictionary<string, Font?> _shapers = new(StringComparer.Ordinal);
+    private ArabicTextLayout? _arabic;
+    private readonly HashSet<SvgTextSource> _usedSources = [];
 
     /// <summary>Draws every command of <paramref name="picture"/> onto <paramref name="canvas"/>.</summary>
     public void Draw(ShimSkiaSharp.SKPicture picture, SKCanvas canvas)
     {
         if (picture.Commands is null)
             return;
+        if (DrawTextPicture(picture, canvas))
+            return;
         foreach (var command in picture.Commands)
             Draw(command, canvas);
+    }
+
+    private bool DrawTextPicture(ShimSkiaSharp.SKPicture picture, SKCanvas canvas)
+    {
+        // A uniform SVG text element is one child picture. Its old per-word commands can already be in visual
+        // order, including punctuation merged into a Latin run. Shape its original paragraph once instead.
+        if (sources is null || picture.Commands is not { Count: > 0 } commands || commands.Any(c => c is not DrawTextCanvasCommand))
+            return false;
+        var draws = commands.Cast<DrawTextCanvasCommand>().ToArray();
+        var signature = SvgTextSource.Characters(string.Concat(draws.Select(d => d.Text)));
+        var source = sources.FirstOrDefault(s => s.Simple && ArabicTextLayout.ContainsArabic(s.Text) && !_usedSources.Contains(s) && SvgTextSource.Characters(s.Text) == signature);
+        if (source is null || draws[0].Paint is not { } shimPaint)
+            return false;
+        using var font = draws[0].Font is { } f ? model.ToSKFont(f) : model.ToSKFont(shimPaint);
+        using var paint = model.ToSKPaint(shimPaint);
+        if (font is null || paint is null || draws.Any(d => d.Y != draws[0].Y || d.Paint?.TextSize != shimPaint.TextSize
+            || !Equals(d.Paint?.Color, shimPaint.Color)))
+            return false;
+        _arabic ??= new ArabicTextLayout();
+        var line = _arabic.Wrap(source.Text, float.MaxValue, font.Size, font.Typeface?.FontWeight >= 600, source.Rtl)[0];
+        var align = source.Anchor switch
+        {
+            "middle" => SKTextAlign.Center,
+            "end" => source.Rtl ? SKTextAlign.Left : SKTextAlign.Right,
+            _ => source.Rtl ? SKTextAlign.Right : SKTextAlign.Left,
+        };
+        var x = source.X ?? draws.Min(d => d.X);
+        x -= align switch { SKTextAlign.Right => line.Width, SKTextAlign.Center => line.Width / 2, _ => 0 };
+        ArabicTextLayout.Draw(canvas, line, x, draws[0].Y, paint.Color, glyphWriter, paint);
+        _usedSources.Add(source);
+        return true;
     }
 
     private void Draw(CanvasCommand command, SKCanvas canvas)
@@ -227,6 +264,7 @@ internal sealed class OutlinedTextPlayback(SkiaModel model) : IDisposable
 
     public void Dispose()
     {
+        _arabic?.Dispose();
         foreach (var font in _shapers.Values)
             font?.Dispose();
         _shapers.Clear();

@@ -4,7 +4,9 @@
 using System.IO.Compression;
 using Filee.Core.Conversion;
 using Filee.Engines.Ebooks;
+using Filee.Engines.Hwp.Hwpx;
 using Filee.Engines.Infrastructure;
+using Filee.Engines.Pdf;
 
 namespace Filee.Engines.Hwp;
 
@@ -51,6 +53,25 @@ public sealed class RhwpConverter : IConverter
         try
         {
             var input = step.To == "pdf" ? await PrepareAsync(exe, step, cancellationToken) : step.InputPath;
+            if (step.To == "pdf" && Path.GetExtension(input).Equals(".hwpx", StringComparison.OrdinalIgnoreCase)
+                && ArabicDocumentPdf.HasArabicSource(input, "hwpx"))
+            {
+                var model = HwpxReader.Read(input, Path.Combine(step.WorkDirectory, "arabic-pdf-media"));
+                if (ArabicDocumentPdf.ContainsArabic(model))
+                {
+                    // Keep the source's formatting rather than round-tripping it through HWPX, when it has a reader.
+                    if (step.OriginalInputPath is { } original && step.OriginalFormat is { } format
+                        && DocumentReaders.BuiltInFormats.Contains(format) && format != "hwpx")
+                        model = await DocumentReaders.ReadAsync(original, format, step.WorkDirectory, cancellationToken);
+                    ArabicDocumentPdf.Write(model, temp, cancellationToken, step.Preset.Document.PdfA);
+                    var arabicTarget = step.Output.Allocate(step.To);
+                    if (arabicTarget is null)
+                        return [];
+                    File.Move(temp, arabicTarget, overwrite: true);
+                    progress?.Report(1);
+                    return [arabicTarget];
+                }
+            }
             string[] arguments = step.To switch
             {
                 "pdf" => ["export-pdf", input, "-o", temp, .. RhwpInput.PdfOptions()],
@@ -81,6 +102,7 @@ public sealed class RhwpConverter : IConverter
         progress?.Report(1);
         return [target];
     }
+
 
     /// <summary>
     /// The document rhwp renders: a copy with the fixes of <see cref="RhwpInput"/> (fonts, shape sizes, equation

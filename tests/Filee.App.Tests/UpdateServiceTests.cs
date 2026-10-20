@@ -280,7 +280,7 @@ public class UpdateServiceTests
     [Fact]
     public void Download_page_is_the_latest_release()
     {
-        Assert.EndsWith("/releases/latest", UpdateService.LatestReleaseUrl);
+        Assert.EndsWith("/releases", UpdateService.LatestReleaseUrl);
         Assert.StartsWith(UpdateService.RepositoryUrl.TrimEnd('/'), UpdateService.LatestReleaseUrl);
     }
 }
