@@ -2,13 +2,38 @@ name: Publish verified Arabic preview
 
 on:
   push:
-    tags: ['publish-arabic-v*', 'inspect-arabic-*']
+    tags: ['publish-arabic-v*', 'inspect-arabic-*', 'retry-arabic-*']
 
 permissions:
   contents: write
   actions: read
 
 jobs:
+  retry:
+    if: startsWith(github.ref_name, 'retry-arabic-')
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Retry the completed job on a fresh runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="${GITHUB_REF_NAME##*-job}"
+          [[ "$job" =~ ^[0-9]+$ ]]
+          if ! gh api --method POST "repos/$GITHUB_REPOSITORY/actions/jobs/$job/rerun" > retry.json 2> retry-error.txt; then
+            python3 - <<'PYTHON'
+          import pathlib
+          text = pathlib.Path('retry-error.txt').read_text() + pathlib.Path('retry.json').read_text()
+          print('::error::Retry API: ' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PYTHON
+            exit 1
+          fi
+          echo 'Fresh-runner retry requested.' >> "$GITHUB_STEP_SUMMARY"
+
   inspect:
     if: startsWith(github.ref_name, 'inspect-arabic-')
     runs-on: ubuntu-24.04
